@@ -4,12 +4,12 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Enum\MatchStatus;
-use App\Repository\MatchRepository;
+use App\Repository\GameMatchRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: MatchRepository::class)]
+#[ORM\Entity(repositoryClass: GameMatchRepository::class)]
 #[ORM\Table(name: '`match`')] // keep because MATCH is SQL reserved
 #[ApiResource]
 class GameMatch
@@ -49,7 +49,7 @@ class GameMatch
     private ?Team $awayTeam = null;
 
     #[ORM\OneToMany(
-        mappedBy: 'relatedMatch',
+        mappedBy: 'match',
         targetEntity: MatchEvent::class,
         cascade: ['persist', 'remove'],
         orphanRemoval: true
@@ -178,7 +178,7 @@ class GameMatch
     {
         if (!$this->matchEvents->contains($matchEvent)) {
             $this->matchEvents->add($matchEvent);
-            $matchEvent->setRelatedMatch($this);
+            $matchEvent->setMatch($this);
         }
 
         return $this;
@@ -187,8 +187,8 @@ class GameMatch
     public function removeMatchEvent(MatchEvent $matchEvent): static
     {
         if ($this->matchEvents->removeElement($matchEvent)) {
-            if ($matchEvent->getRelatedMatch() === $this) {
-                $matchEvent->setRelatedMatch(null);
+            if ($matchEvent->getMatch() === $this) {
+                $matchEvent->setMatch(null);
             }
         }
 

@@ -37,7 +37,7 @@ class Team
     #[ORM\OneToMany(targetEntity: Player::class, mappedBy: 'team', orphanRemoval: true)]
     private Collection $players;
 
-    #[ORM\OneToMany(targetEntity: \App\Entity\Match::class, mappedBy: 'homeTeam', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: GameMatch::class, mappedBy: 'homeTeam', orphanRemoval: true)]
     private Collection $homeMatches;
 
     #[ORM\OneToMany(targetEntity: GameMatch::class, mappedBy: 'awayTeam')]
@@ -161,7 +161,7 @@ class Team
         return $this;
     }
 
-    public function removeHomeMatch(GameMatch $homeGameMatch): static
+    public function removeHomeMatch(GameMatch $homeMatch): static
     {
         if ($this->homeMatches->removeElement($homeMatch)) {
             if ($homeMatch->getHomeTeam() === $this) {
