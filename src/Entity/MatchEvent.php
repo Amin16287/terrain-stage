@@ -46,8 +46,8 @@ class MatchEvent
     private ?string $clientUuid = null;
 
     #[ORM\ManyToOne(inversedBy: 'matchEvents')]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?GameMatch $match = null;
+    #[ORM\JoinColumn(name: 'game_match_id', referencedColumnName: 'id', nullable: false)]
+    private ?GameMatch $relatedMatch = null;
 
 
     #[ORM\ManyToOne(inversedBy: 'matchEvents')]
@@ -177,14 +177,14 @@ class MatchEvent
         return $this;
     }
 
-    public function getMatch(): ?GameMatch
+    public function getRelatedMatch(): ?GameMatch
     {
-        return $this->match;
+        return $this->relatedMatch;
     }
 
-    public function setMatch(?GameMatch $match): static
+    public function setRelatedMatch(?GameMatch $relatedMatch): static
     {
-        $this->match = $match;
+        $this->relatedMatch = $relatedMatch;
 
         return $this;
     }

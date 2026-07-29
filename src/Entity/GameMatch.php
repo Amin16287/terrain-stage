@@ -10,7 +10,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: GameMatchRepository::class)]
-#[ORM\Table(name: '`match`')] // keep because MATCH is SQL reserved
+#[ORM\Table(name: 'game_match')]
 #[ApiResource]
 class GameMatch
 {
@@ -49,7 +49,7 @@ class GameMatch
     private ?Team $awayTeam = null;
 
     #[ORM\OneToMany(
-        mappedBy: 'match',
+        mappedBy: 'relatedMatch',
         targetEntity: MatchEvent::class,
         cascade: ['persist', 'remove'],
         orphanRemoval: true
@@ -178,7 +178,7 @@ class GameMatch
     {
         if (!$this->matchEvents->contains($matchEvent)) {
             $this->matchEvents->add($matchEvent);
-            $matchEvent->setMatch($this);
+            $matchEvent->setRelatedMatch($this);
         }
 
         return $this;
@@ -187,8 +187,8 @@ class GameMatch
     public function removeMatchEvent(MatchEvent $matchEvent): static
     {
         if ($this->matchEvents->removeElement($matchEvent)) {
-            if ($matchEvent->getMatch() === $this) {
-                $matchEvent->setMatch(null);
+            if ($matchEvent->getRelatedMatch() === $this) {
+                $matchEvent->setRelatedMatch(null);
             }
         }
 
