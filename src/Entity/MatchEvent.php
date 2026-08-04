@@ -24,10 +24,10 @@ class MatchEvent
     #[ORM\Column]
     private ?int $minute = null;
 
-    #[ORM\Column(type: 'float')]
+    #[ORM\Column(type: 'float', nullable: true)]
     private ?float $zoneX = null;
 
-    #[ORM\Column(type: 'float')]
+    #[ORM\Column(type: 'float', nullable: true)]
     private ?float $zoneY = null;
 
     #[ORM\Column(length: 255, nullable: true)]

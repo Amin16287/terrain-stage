@@ -3,7 +3,7 @@
         'name' => 'symfony/skeleton',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'c9eb608469f8a7715a19f16f5d6e40f45f1de9c7',
+        'reference' => '6c2b00eff8025df83d1a84bfa8207993a4932e65',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -280,6 +280,18 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'php-http/async-client-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '*',
+            ),
+        ),
+        'php-http/client-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '*',
+            ),
+        ),
         'phpdocumentor/reflection-common' => array(
             'pretty_version' => '2.2.0',
             'version' => '2.2.0.0',
@@ -376,6 +388,12 @@
                 0 => '1.0',
             ),
         ),
+        'psr/http-client-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '1.0',
+            ),
+        ),
         'psr/link' => array(
             'pretty_version' => '2.0.1',
             'version' => '2.0.1.0',
@@ -418,6 +436,15 @@
             'reference' => 'd2e2f014ccd6ec9fae8dbe6336a4164346a2a856',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/asset',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/asset-mapper' => array(
+            'pretty_version' => 'v7.4.15',
+            'version' => '7.4.15.0',
+            'reference' => 'ce8c9fff557fa9750fa1c1decace78f521f18365',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../symfony/asset-mapper',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -585,6 +612,30 @@
             'install_path' => __DIR__ . '/../symfony/framework-bundle',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'symfony/http-client' => array(
+            'pretty_version' => 'v7.4.15',
+            'version' => '7.4.15.0',
+            'reference' => '817bb83ef06717f67ab72a3f03e3b63fbe138de1',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../symfony/http-client',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/http-client-contracts' => array(
+            'pretty_version' => 'v3.7.1',
+            'version' => '3.7.1.0',
+            'reference' => '41fc42d276aeff21192465331ebbab7d83a743c0',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../symfony/http-client-contracts',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/http-client-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '3.0',
+            ),
         ),
         'symfony/http-foundation' => array(
             'pretty_version' => 'v7.4.14',
@@ -841,9 +892,18 @@
         'symfony/skeleton' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'c9eb608469f8a7715a19f16f5d6e40f45f1de9c7',
+            'reference' => '6c2b00eff8025df83d1a84bfa8207993a4932e65',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/stimulus-bundle' => array(
+            'pretty_version' => 'v2.36.0',
+            'version' => '2.36.0.0',
+            'reference' => '377a3d1ec5834631a7db53bd275276ff3c5b49df',
+            'type' => 'symfony-bundle',
+            'install_path' => __DIR__ . '/../symfony/stimulus-bundle',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -907,6 +967,15 @@
             'reference' => '2676b524340abcfe4d6151ec698463cebafee439',
             'type' => 'library',
             'install_path' => __DIR__ . '/../symfony/uid',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/ux-turbo' => array(
+            'pretty_version' => 'v2.36.0',
+            'version' => '2.36.0.0',
+            'reference' => 'c16f0fdcc8eb22d80a02949447e561c145fa1bc8',
+            'type' => 'symfony-bundle',
+            'install_path' => __DIR__ . '/../symfony/ux-turbo',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

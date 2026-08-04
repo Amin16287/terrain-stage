@@ -1,0 +1,92 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Terrain | Saisie terrain{% endblock %}
+
+{% block body %}
+    <div class="app-shell">
+        <header class="app-header" data-controller="connectivity install-prompt">
+            <div class="app-topbar">
+                <div class="brand">
+                    <div class="brand-mark" aria-hidden="true">T</div>
+                    <div class="brand-copy">
+                        <h1>Terrain</h1>
+                    </div>
+                </div>
+
+                <div
+                    class="status-pill"
+                    data-connectivity-target="badge"
+                    aria-live="polite"
+                >
+                    <span data-connectivity-target="label">Verification...</span>
+                </div>
+            </div>
+
+            <section class="hero-card">
+                <p class="eyebrow">Base PWA en place</p>
+                <h2>Une interface pensee pour le bord de terrain.</h2>
+                <p>
+                    Cette premiere etape pose le manifest, le service worker, l'installation
+                    sur mobile et la detection de connectivite. On pourra ensuite brancher la
+                    selection du match et la saisie d'evenements.
+                </p>
+
+                <div class="button-row">
+                    <button
+                        type="button"
+                        class="primary-button"
+                        data-install-prompt-target="button"
+                        data-action="install-prompt#prompt"
+                        hidden
+                    >
+                        Installer l'application
+                    </button>
+
+                    <a href="{{ path('app_home') }}" class="secondary-button">
+                        Rafraichir la page d'accueil
+                    </a>
+                </div>
+
+                <p class="hint-text" data-install-prompt-target="hint">
+                    Le mode installation s'activera automatiquement si le navigateur le permet.
+                </p>
+            </section>
+        </header>
+
+        <main class="app-main">
+            <section class="feature-grid">
+                <article class="feature-card">
+                    <p class="eyebrow">Manifest</p>
+                    <h3>Installation mobile</h3>
+                    <p>Nom, icones, couleur de theme et affichage standalone sont deja prepares.</p>
+                </article>
+
+                <article class="feature-card">
+                    <p class="eyebrow">Service Worker</p>
+                    <h3>Chargement hors ligne</h3>
+                    <p>Les assets critiques et une page offline sont mis en cache des maintenant.</p>
+                </article>
+            </section>
+
+            <section class="info-grid">
+                <article class="info-card">
+                    <h3>Prochaine etape</h3>
+                    <p>
+                        Ecran de selection du match, avec liste simple et boutons larges adaptes
+                        a une utilisation mobile.
+                    </p>
+                </article>
+
+                <article class="info-card">
+                    <h3>Structure Stimulus</h3>
+                    <p>
+                        Les premiers controleurs actifs sont <code>connectivity</code> et
+                        <code>install-prompt</code>. Les controleurs de tag d'evenements viendront ensuite.
+                    </p>
+                </article>
+            </section>
+        </main>
+
+      
+    </div>
+{% endblock %}
