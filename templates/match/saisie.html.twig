@@ -1,0 +1,923 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Terrain | Saisie — {{ match.homeTeam.name ?: 'Match' }}{% endblock %}
+
+{% block body %}
+<style>
+  :root {
+    --bg: #eef2f0;
+    --panel: #ffffff;
+    --text: #0b1f12;
+    --muted: #475569;
+    --line: #dbe4dd;
+    --accent: #16a34a;
+    --accent-dark: #166534;
+    --pitch: #166534;
+    --grass: #15803d;
+    --grass-alt: #1f8f4a;
+    --scoreboard: #0b3d20;
+    --scoreboard-text: #f8fafc;
+    --live: #ef4444;
+    --scheduled: #64748b;
+    --finished: #16a34a;
+    --warning: #f59e0b;
+    --danger: #dc2626;
+    --card-yellow: #eab308;
+    --card-red: #dc2626;
+    --key-pass: #0ea5e9;
+    --shot: #6366f1;
+    --goal: #16a34a;
+    --sub: #a855f7;
+    --shadow-sm: 0 1px 2px rgba(11,31,18,.08), 0 1px 1px rgba(11,31,18,.04);
+    --shadow-md: 0 10px 25px rgba(11,31,18,.12), 0 4px 10px rgba(11,31,18,.06);
+    --shadow-lg: 0 30px 60px rgba(11,31,18,.18), 0 15px 30px rgba(11,31,18,.08);
+    --radius-lg: 24px;
+    --radius-md: 18px;
+    --radius-sm: 12px;
+    font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded",
+                 "Segoe UI", system-ui, "Inter", sans-serif;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app-wrapper {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg);
+    position: relative;
+    padding-bottom: 32px;
+  }
+
+  .statusbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    height: 48px;
+    padding: 0 28px 0 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 700;
+    background: var(--scoreboard);
+    color: var(--scoreboard-text);
+  }
+
+  .app-content {
+    padding-bottom: 24px;
+  }
+
+  .scoreboard {
+    position: sticky;
+    top: 48px;
+    z-index: 20;
+    margin: 0 0 14px;
+    padding: 14px 16px 16px;
+    background: linear-gradient(180deg, #0c4a2a, var(--scoreboard));
+    color: var(--scoreboard-text);
+    border-radius: 0 0 22px 22px;
+    box-shadow: var(--shadow-md);
+  }
+  .scoreboard-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .sb-team { font-weight: 900; font-size: 14px; letter-spacing: -0.01em; line-height: 1.15; }
+  .sb-team.home { text-align: left; }
+  .sb-team.away { text-align: right; }
+  .sb-team small { display: block; font-size: 10px; color: rgba(248,250,252,.55); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
+  .sb-score {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-weight: 900; font-variant-numeric: tabular-nums; font-size: 30px;
+    padding: 6px 14px;
+    background: rgba(255,255,255,.07);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  .sb-score .dash { color: rgba(248,250,252,.45); }
+
+  .sb-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: rgba(248,250,252,.82);
+  }
+  .sb-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.1);
+    font-weight: 800;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .sb-chip.live { background: rgba(239,68,68,.22); border-color: rgba(239,68,68,.35); }
+  .sb-chip.live::before {
+    content: ""; width: 7px; height: 7px; border-radius: 999px;
+    background: #fecaca; box-shadow: 0 0 0 3px rgba(254,202,202,.3);
+    animation: pulse 1.4s infinite;
+  }
+  .sb-chip.scheduled { background: rgba(100,116,139,.22); }
+  .sb-chip.finished { background: rgba(22,163,74,.22); }
+  .minute-timer {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    font-size: 14px;
+  }
+  .minute-timer .icon { font-size: 13px; opacity: .85; }
+  .sb-connectivity {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px;
+    font-weight: 800;
+    color: rgba(248,250,252,.75);
+  }
+  .sb-connectivity::before {
+    content: "";
+    width: 7px; height: 7px; border-radius: 999px;
+    background: #22c55e;
+  }
+
+  .nav-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.10);
+    color: var(--scoreboard-text);
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 11px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+
+  .event-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 16px 18px;
+  }
+  .event-btn {
+    min-height: 96px;
+    border-radius: 22px;
+    border: 0;
+    background: #fff;
+    padding: 12px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    transition: transform .08s ease, box-shadow .12s ease;
+    font-family: inherit;
+  }
+  .event-btn:active { transform: scale(.96); }
+  .event-btn .icon-wrap {
+    width: 46px; height: 46px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    line-height: 1;
+  }
+  .event-btn .label {
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    text-align: center;
+    line-height: 1.2;
+  }
+  .event-btn.shot     { background: linear-gradient(180deg, #eef2ff, #ffffff); }
+  .event-btn.shot .icon-wrap { background: rgba(99,102,241,.14); color: var(--shot); }
+  .event-btn.goal     { background: linear-gradient(180deg, #dcfce7, #ffffff); }
+  .event-btn.goal .icon-wrap { background: rgba(22,163,74,.15); color: var(--goal); }
+  .event-btn.key      { background: linear-gradient(180deg, #e0f2fe, #ffffff); }
+  .event-btn.key .icon-wrap { background: rgba(14,165,233,.14); color: var(--key-pass); }
+  .event-btn.yellow   { background: linear-gradient(180deg, #fef9c3, #ffffff); }
+  .event-btn.yellow .icon-wrap { background: rgba(234,179,8,.18); color: #854d0e; }
+  .event-btn.red      { background: linear-gradient(180deg, #fee2e2, #ffffff); }
+  .event-btn.red .icon-wrap { background: rgba(220,38,38,.15); color: var(--card-red); }
+  .event-btn.sub      { background: linear-gradient(180deg, #f3e8ff, #ffffff); }
+  .event-btn.sub .icon-wrap { background: rgba(168,85,247,.14); color: var(--sub); }
+
+  .minute-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 16px 14px;
+    padding: 10px 14px;
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+  }
+  .minute-label { font-weight: 800; font-size: 12px; color: var(--muted); }
+  .minute-display { font-weight: 900; font-size: 20px; color: var(--accent-dark); font-variant-numeric: tabular-nums; min-width: 60px; text-align: center; }
+  .minute-btn {
+    width: 36px; height: 36px;
+    border-radius: 12px;
+    border: 0;
+    background: rgba(22,163,74,.12);
+    color: var(--accent-dark);
+    font-weight: 900;
+    font-size: 16px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+  }
+  .minute-btn:active { transform: scale(.96); }
+
+  .timeline-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 18px 8px;
+  }
+  .timeline-head h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    color: #0b3d20;
+  }
+  .pill-count {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted);
+    background: #fff;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+  }
+  .timeline {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    margin: 0 16px;
+    padding: 4px;
+    display: grid;
+    gap: 2px;
+  }
+  .event-row {
+    display: grid;
+    grid-template-columns: 52px 40px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px 10px 12px;
+    border-radius: 14px;
+    transition: background .15s ease;
+  }
+  .event-row + .event-row { border-top: 1px solid #f1f5f2; }
+  .event-row:hover { background: #f8faf8; }
+  .minute {
+    font-weight: 900;
+    font-size: 14px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .minute small {
+    font-weight: 700;
+    color: #cbd5d1;
+    font-size: 10px;
+    margin-left: 1px;
+  }
+  .type-icon {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    display: grid; place-items: center;
+    font-size: 18px;
+  }
+  .type-icon.shot    { background: rgba(99,102,241,.14); color: var(--shot); }
+  .type-icon.goal    { background: rgba(22,163,74,.15); color: var(--goal); }
+  .type-icon.key     { background: rgba(14,165,233,.14); color: var(--key-pass); }
+  .type-icon.yellow  { background: rgba(234,179,8,.18); color: #854d0e; }
+  .type-icon.red     { background: rgba(220,38,38,.15); color: var(--card-red); }
+  .type-icon.sub     { background: rgba(168,85,247,.14); color: var(--sub); }
+
+  .who {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .who .name {
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .who .role {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+  .undo-btn {
+    border: 0;
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all .12s ease;
+  }
+  .undo-btn:active { background: rgba(239,68,68,.10); color: var(--danger); transform: rotate(-10deg) scale(.96); }
+
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(11,31,18,.48);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    animation: fadeIn .18s ease;
+  }
+  .sheet-backdrop.open { display: flex; }
+  .sheet {
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-radius: 28px 28px 0 0;
+    padding: 10px 18px 24px;
+    box-shadow: 0 -20px 60px rgba(11,31,18,.3);
+    animation: slideUp .22s cubic-bezier(.2,.9,.2,1);
+    max-height: 78vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-handle {
+    width: 44px; height: 5px;
+    background: #dbe4dd;
+    border-radius: 999px;
+    margin: 6px auto 12px;
+  }
+  .sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .sheet-head h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+  }
+  .sheet-close {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    background: #f1f5f2;
+    border: 0;
+    color: var(--muted);
+    font-weight: 900;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .player-search {
+    position: relative;
+    margin-bottom: 12px;
+  }
+  .player-search input {
+    width: 100%;
+    height: 46px;
+    border-radius: 14px;
+    border: 1.5px solid var(--line);
+    background: #fafcfb;
+    padding: 0 14px 0 42px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    outline: none;
+  }
+  .player-search input::placeholder { color: #94a39a; }
+  .player-search::before {
+    content: "🔍";
+    position: absolute;
+    left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 14px;
+    opacity: .6;
+  }
+  .player-list {
+    display: grid;
+    gap: 6px;
+    overflow-y: auto;
+    padding-bottom: 4px;
+    flex: 1;
+  }
+  .player-list::-webkit-scrollbar { width: 0; }
+  .player-row {
+    display: grid;
+    grid-template-columns: 44px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    transition: background .12s ease;
+    cursor: pointer;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    font-family: inherit;
+  }
+  .player-row:active { background: #f0fbf4; }
+  .number-badge {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    display: grid; place-items: center;
+    background: linear-gradient(180deg, #0f766e, #115e59);
+    color: #fff;
+    font-weight: 900;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  .player-row .info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .player-row .info .name {
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .player-row .info .pos {
+    font-size: 11px;
+    font-weight: 800;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .chev { color: #cbd5d1; font-weight: 900; }
+
+  .empty-team {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .55; transform: scale(1.25); }
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translate(-50%, 20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 20px;
+    border-radius: 16px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 900;
+    font-size: 13px;
+    box-shadow: 0 10px 30px rgba(22,163,74,.40);
+    z-index: 200;
+    animation: toastIn .22s ease;
+    pointer-events: none;
+  }
+  .toast.error { background: var(--danger); box-shadow: 0 10px 30px rgba(220,38,38,.40); }
+</style>
+
+{% set homeName = match.homeTeam ? match.homeTeam.name : 'Équipe domicile' %}
+{% set awayName = match.awayTeam ? match.awayTeam.name : (match.opponentName ?: 'Adversaire') %}
+{% set matchStatus = match.status.value %}
+
+<div class="app-wrapper" data-match-id="{{ match.id }}">
+  <div class="statusbar dark"><span>9:41</span><span>5G 🔋</span></div>
+
+  <div class="app-content">
+    <div class="scoreboard">
+      <a href="{{ path('app_match_selection') }}" class="nav-back">← Liste des matchs</a>
+
+      <div class="scoreboard-row">
+        <div class="sb-team home">
+          {{ homeName }}
+          <small>Domicile</small>
+        </div>
+        <div class="sb-score" id="scoreboard-score">
+          <span>{{ match.scoreHome }}</span>
+          <span class="dash">-</span>
+          <span>{{ match.scoreAway ?: 0 }}</span>
+        </div>
+        <div class="sb-team away">
+          {{ awayName }}
+          <small>{{ match.awayTeam ? 'Visiteur' : 'Extérieur' }}</small>
+        </div>
+      </div>
+      <div class="sb-meta">
+        <span
+          class="sb-chip {{ matchStatus }}"
+          id="status-chip"
+          data-current-status="{{ matchStatus }}"
+          title="Cliquer pour changer le statut"
+        >
+          {% if matchStatus == 'live' %}LIVE{% elseif matchStatus == 'scheduled' %}PROGRAMMÉ{% else %}TERMINÉ{% endif %}
+        </span>
+        <span class="minute-timer"><span class="icon">⏱</span> <span id="current-minute">0</span><span style="opacity:.55">′</span></span>
+        <span class="sb-connectivity" data-controller="connectivity" data-connectivity-target="badge">
+          <span data-connectivity-target="label">5G</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="minute-controls">
+      <button class="minute-btn" id="minute-minus" title="Retirer 1 minute">−</button>
+      <div>
+        <div class="minute-label">Minute actuelle</div>
+        <div class="minute-display" id="minute-value">0′</div>
+      </div>
+      <button class="minute-btn" id="minute-plus" title="Ajouter 1 minute">+</button>
+    </div>
+
+    <div class="event-grid">
+      <button class="event-btn shot" data-event-type="shot" type="button">
+        <div class="icon-wrap">⚽</div>
+        <div class="label">Tir</div>
+      </button>
+      <button class="event-btn goal" data-event-type="goal" type="button">
+        <div class="icon-wrap">🎯</div>
+        <div class="label">But</div>
+      </button>
+      <button class="event-btn key" data-event-type="key_pass" type="button">
+        <div class="icon-wrap">🔑</div>
+        <div class="label">Passe clé</div>
+      </button>
+      <button class="event-btn yellow" data-event-type="card_yellow" type="button">
+        <div class="icon-wrap">🟨</div>
+        <div class="label">Carton jaune</div>
+      </button>
+      <button class="event-btn red" data-event-type="card_red" type="button">
+        <div class="icon-wrap">🟥</div>
+        <div class="label">Carton rouge</div>
+      </button>
+      <button class="event-btn sub" data-event-type="substitution" type="button">
+        <div class="icon-wrap">🔄</div>
+        <div class="label">Remplacement</div>
+      </button>
+    </div>
+
+    <div class="timeline-head">
+      <h3>Événements du match</h3>
+      <span class="pill-count" id="events-count">{{ events|length }} tag(s)</span>
+    </div>
+
+    <div class="timeline" id="events-timeline">
+      {% for event in events %}
+        {% set player = event.player %}
+        <div class="event-row" data-event-id="{{ event.id }}">
+          <div class="minute">{{ '%02d'|format(event.minute) }}<small>′</small></div>
+          <div class="type-icon {{ event.type.value == 'key_pass' ? 'key' : event.type.value }}">
+            {% if event.type.value == 'shot' %}⚽
+            {% elseif event.type.value == 'goal' %}🎯
+            {% elseif event.type.value == 'key_pass' %}🔑
+            {% elseif event.type.value == 'card_yellow' %}🟨
+            {% elseif event.type.value == 'card_red' %}🟥
+            {% elseif event.type.value == 'substitution' %}🔄
+            {% endif %}
+          </div>
+          <div class="who">
+            <span class="name">{{ player ? (player.firstName ~ ' ' ~ player.lastName|upper) : 'Inconnu' }}</span>
+            <span class="role">{{ player ? player.position : '' }}</span>
+          </div>
+          <button class="undo-btn" type="button" data-undo-id="{{ event.id }}" title="Annuler">↺</button>
+        </div>
+      {% else %}
+        <div class="empty-team">Aucun événement saisi pour le moment. Appuyez sur un bouton ci-dessus pour commencer.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="player-modal" role="dialog" aria-modal="true" aria-label="Sélectionner le joueur">
+  <div class="sheet" role="document">
+    <div class="sheet-handle"></div>
+
+    <div class="sheet-head">
+      <h3 id="player-modal-title">Choisir le joueur</h3>
+      <button class="sheet-close" type="button" aria-label="Fermer" id="player-modal-close">✕</button>
+    </div>
+
+    <div class="player-search">
+      <input id="player-search-input" placeholder="Rechercher un joueur, un poste…" type="text">
+    </div>
+
+    <div class="player-list" id="player-list">
+      {% if players is empty %}
+        <div class="empty-team">⚠️ Aucun joueur trouvé dans l'équipe domicile. Veuillez d'abord ajouter des joueurs dans la base de données.</div>
+      {% else %}
+        {% for player in players %}
+          <button class="player-row" type="button" data-player-id="{{ player.id }}" data-player-name="{{ player.firstName }} {{ player.lastName|upper }}">
+            <div class="number-badge">{{ loop.index }}</div>
+            <div class="info">
+              <div class="name">{{ player.firstName }} {{ player.lastName|upper }}</div>
+              <div class="pos">{{ player.position }}</div>
+            </div>
+            <div class="chev">›</div>
+          </button>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const matchId = document.querySelector('[data-match-id]').dataset.matchId;
+    const csrfToken = '{{ csrf_token('app_match_event_create') }}';
+
+    let currentMinute = 0;
+    let pendingEventType = null;
+
+    const scoreboardScore = document.getElementById('scoreboard-score');
+    const statusChip = document.getElementById('status-chip');
+    const minuteDisplay = document.getElementById('minute-value');
+    const currentMinuteDisplay = document.getElementById('current-minute');
+    const eventsCount = document.getElementById('events-count');
+    const eventsTimeline = document.getElementById('events-timeline');
+    const playerModal = document.getElementById('player-modal');
+    const playerModalTitle = document.getElementById('player-modal-title');
+    const playerSearchInput = document.getElementById('player-search-input');
+    const playerList = document.getElementById('player-list');
+
+    function updateMinuteDisplay() {
+      minuteDisplay.textContent = currentMinute + '′';
+      currentMinuteDisplay.textContent = currentMinute;
+    }
+
+    document.getElementById('minute-plus').addEventListener('click', () => {
+      currentMinute = Math.min(120, currentMinute + 1);
+      updateMinuteDisplay();
+    });
+
+    document.getElementById('minute-minus').addEventListener('click', () => {
+      currentMinute = Math.max(0, currentMinute - 1);
+      updateMinuteDisplay();
+    });
+
+    function openPlayerModal(eventType) {
+      pendingEventType = eventType;
+      const typeLabels = {
+        shot: 'Tir — Sélection joueur',
+        goal: 'But — Sélection joueur',
+        key_pass: 'Passe clé — Sélection joueur',
+        card_yellow: 'Carton jaune — Sélection joueur',
+        card_red: 'Carton rouge — Sélection joueur',
+        substitution: 'Remplacement — Sélection joueur'
+      };
+      playerModalTitle.textContent = typeLabels[eventType] || 'Choisir le joueur';
+      playerSearchInput.value = '';
+      filterPlayers('');
+      playerModal.classList.add('open');
+    }
+
+    function closePlayerModal() {
+      playerModal.classList.remove('open');
+      pendingEventType = null;
+    }
+
+    function filterPlayers(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll('.player-row[data-player-id]').forEach(row => {
+        const name = row.dataset.playerName.toLowerCase();
+        const pos = row.querySelector('.pos').textContent.toLowerCase();
+        row.style.display = (name.includes(q) || pos.includes(q)) ? '' : 'none';
+      });
+    }
+
+    document.getElementById('player-modal-close').addEventListener('click', closePlayerModal);
+    playerModal.addEventListener('click', (e) => {
+      if (e.target === playerModal) closePlayerModal();
+    });
+    playerSearchInput.addEventListener('input', (e) => filterPlayers(e.target.value));
+
+    document.querySelectorAll('.event-btn[data-event-type]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openPlayerModal(btn.dataset.eventType);
+      });
+    });
+
+    function showToast(message, isError = false) {
+      const toast = document.createElement('div');
+      toast.className = 'toast' + (isError ? ' error' : '');
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 1500);
+    }
+
+    function getIconForType(type) {
+      switch (type) {
+        case 'shot': return '⚽';
+        case 'goal': return '🎯';
+        case 'key_pass': return '🔑';
+        case 'card_yellow': return '🟨';
+        case 'card_red': return '🟥';
+        case 'substitution': return '🔄';
+        default: return '•';
+      }
+    }
+
+    function prependEventRow(event) {
+      const emptyEl = eventsTimeline.querySelector('.empty-team');
+      if (emptyEl) emptyEl.remove();
+
+      const row = document.createElement('div');
+      row.className = 'event-row';
+      row.dataset.eventId = event.id;
+      const min = String(event.minute).padStart(2, '0');
+      const typeClass = event.type === 'key_pass' ? 'key' : event.type;
+      row.innerHTML = `
+        <div class="minute">${min}<small>′</small></div>
+        <div class="type-icon ${typeClass}">${getIconForType(event.type)}</div>
+        <div class="who">
+          <span class="name">${event.playerName}</span>
+          <span class="role">${event.playerPosition || ''}</span>
+        </div>
+        <button class="undo-btn" type="button" data-undo-id="${event.id}" title="Annuler">↺</button>
+      `;
+
+      if (eventsTimeline.firstChild) {
+        eventsTimeline.insertBefore(row, eventsTimeline.firstChild);
+      } else {
+        eventsTimeline.appendChild(row);
+      }
+
+      bindUndoButton(row.querySelector('[data-undo-id]'));
+      updateEventsCount();
+    }
+
+    function removeEventRow(eventId) {
+      const row = eventsTimeline.querySelector(`[data-event-id="${eventId}"]`);
+      if (row) row.remove();
+      if (!eventsTimeline.querySelector('.event-row')) {
+        eventsTimeline.innerHTML = '<div class="empty-team">Aucun événement saisi pour le moment. Appuyez sur un bouton ci-dessus pour commencer.</div>';
+      }
+      updateEventsCount();
+    }
+
+    function updateEventsCount() {
+      const count = eventsTimeline.querySelectorAll('.event-row').length;
+      eventsCount.textContent = count + ' tag(s)';
+    }
+
+    function updateScoreboard(scoreHome, scoreAway) {
+      scoreboardScore.innerHTML = `<span>${scoreHome}</span><span class="dash">-</span><span>${scoreAway}</span>`;
+    }
+
+    async function submitEvent(playerId) {
+      try {
+        const res = await fetch(`/match/${matchId}/event/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            type: pendingEventType,
+            minute: currentMinute,
+            playerId: playerId,
+            comment: null
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Erreur lors de la création', true);
+          return;
+        }
+
+        prependEventRow(data.event);
+        updateScoreboard(data.event.scoreHome, data.event.scoreAway);
+
+        const labels = {
+          shot: 'Tir enregistré',
+          goal: '⚽ But enregistré !',
+          key_pass: 'Passe clé enregistrée',
+          card_yellow: 'Carton jaune enregistré',
+          card_red: 'Carton rouge enregistré',
+          substitution: 'Remplacement enregistré'
+        };
+        showToast(labels[pendingEventType] || 'Événement enregistré');
+        closePlayerModal();
+      } catch (err) {
+        console.error(err);
+        showToast('Erreur réseau', true);
+      }
+    }
+
+    document.querySelectorAll('.player-row[data-player-id]').forEach(row => {
+      row.addEventListener('click', () => submitEvent(parseInt(row.dataset.playerId, 10)));
+    });
+
+    function bindUndoButton(btn) {
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        const eventId = parseInt(btn.dataset.undoId, 10);
+        if (!confirm('Supprimer cet événement ?')) return;
+        try {
+          const res = await fetch(`/match/${matchId}/event/${eventId}/delete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({})
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            showToast(data.error || 'Erreur', true);
+            return;
+          }
+          removeEventRow(eventId);
+          updateScoreboard(data.scoreHome, data.scoreAway);
+          showToast('Événement supprimé');
+        } catch (err) {
+          console.error(err);
+          showToast('Erreur réseau', true);
+        }
+      });
+    }
+
+    document.querySelectorAll('[data-undo-id]').forEach(bindUndoButton);
+
+    statusChip.addEventListener('click', async () => {
+      const current = statusChip.dataset.currentStatus;
+      const order = ['scheduled', 'live', 'finished'];
+      const labels = { scheduled: 'PROGRAMMÉ', live: 'LIVE', finished: 'TERMINÉ' };
+      const next = order[(order.indexOf(current) + 1) % order.length];
+      try {
+        const res = await fetch(`/match/${matchId}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: next })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          showToast(data.error || 'Erreur', true);
+          return;
+        }
+        statusChip.className = 'sb-chip ' + data.status;
+        statusChip.dataset.currentStatus = data.status;
+        statusChip.textContent = labels[data.status];
+        if (data.status === 'live' && !statusChip.querySelector('span')) {
+          statusChip.innerHTML = '';
+        }
+        showToast('Statut : ' + labels[data.status]);
+      } catch (err) {
+        console.error(err);
+        showToast('Erreur réseau', true);
+      }
+    });
+
+    updateMinuteDisplay();
+  });
+</script>
+{% endblock %}

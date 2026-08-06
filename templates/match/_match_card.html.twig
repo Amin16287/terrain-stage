@@ -1,0 +1,50 @@
+{% set statusValue = match.status.value %}
+{% set isLive = statusValue == 'live' %}
+{% set isScheduled = statusValue == 'scheduled' %}
+{% set isFinished = statusValue == 'finished' %}
+
+{% set homeName = match.homeTeam ? match.homeTeam.name : 'Équipe domicile' %}
+{% set awayName = match.awayTeam ? match.awayTeam.name : (match.opponentName ?: 'Adversaire') %}
+{% set homeCategory = match.homeTeam ? (match.homeTeam.category ?: '') : '' %}
+
+<article class="match-card {{ isLive ? 'live' : '' }}">
+  <div class="match-card-head">
+    <span class="status-badge {{ statusValue }}">
+      {% if isLive %}LIVE{% elseif isScheduled %}🕒 PROGRAMMÉ{% else %}✓ TERMINÉ{% endif %}
+    </span>
+    <span class="match-meta">
+      {{ match.date|date('H:i') }} · {{ match.venue }}
+    </span>
+  </div>
+
+  <div class="teams">
+    <div class="team home">
+      <div class="team-name">{{ homeName }}</div>
+      <div class="team-tag">Domicile{% if homeCategory %} · {{ homeCategory }}{% endif %}</div>
+    </div>
+    <div class="score {{ isScheduled ? 'scheduled' }}">
+      {% if isScheduled %}
+        <span>vs</span>
+      {% else %}
+        <span>{{ match.scoreHome }}</span>
+        <span class="dash">-</span>
+        <span>{{ match.scoreAway ?: 0 }}</span>
+      {% endif %}
+    </div>
+    <div class="team away">
+      <div class="team-name">{{ awayName }}</div>
+      <div class="team-tag">{{ match.awayTeam ? 'Extérieur' : 'Hors club' }}</div>
+    </div>
+  </div>
+
+  <a href="{{ path('app_match_saisie', { id: match.id }) }}" class="cta-btn {{ isLive ? 'primary' : 'secondary' }}">
+    <span class="cta-icon">{{ isLive ? '▶' : '▷' }}</span>
+    {% if isLive %}
+      Continuer la saisie
+    {% elseif isFinished %}
+      Voir le rapport
+    {% else %}
+      Démarrer la saisie
+    {% endif %}
+  </a>
+</article>
