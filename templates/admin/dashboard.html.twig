@@ -1,0 +1,140 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Tableau de bord | Terrain Admin{% endblock %}
+{% block topbar_title %}📊 Tableau de bord{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_matches_new') }}" class="btn primary sm">
+        <span>＋</span> Nouveau match
+    </a>
+    <a href="{{ path('app_admin_teams_new') }}" class="btn secondary sm">
+        <span>＋</span> Nouvelle équipe
+    </a>
+{% endblock %}
+
+{% block body %}
+<div class="stats-grid">
+    <div class="stat-card default">
+        <div class="stat-icon">⚽</div>
+        <div class="stat-label">Total matchs</div>
+        <div class="stat-value">{{ totalMatches }}</div>
+    </div>
+    <div class="stat-card live">
+        <div class="stat-icon">🔴</div>
+        <div class="stat-label">En direct</div>
+        <div class="stat-value">{{ liveMatches }}</div>
+    </div>
+    <div class="stat-card scheduled">
+        <div class="stat-icon">🕒</div>
+        <div class="stat-label">Programmés</div>
+        <div class="stat-value">{{ scheduledMatches }}</div>
+    </div>
+    <div class="stat-card finished">
+        <div class="stat-icon">✓</div>
+        <div class="stat-label">Terminés</div>
+        <div class="stat-value">{{ finishedMatches }}</div>
+    </div>
+    <div class="stat-card default">
+        <div class="stat-icon">👥</div>
+        <div class="stat-label">Équipes</div>
+        <div class="stat-value">{{ totalTeams }}</div>
+    </div>
+    <div class="stat-card default">
+        <div class="stat-icon">🏟️</div>
+        <div class="stat-label">Clubs</div>
+        <div class="stat-value">{{ totalClubs }}</div>
+    </div>
+</div>
+
+<div class="two-col">
+    {% if liveMatchesList is not empty %}
+    <div class="card">
+        <div class="card-header">
+            <h3>🔴 Matchs en direct</h3>
+            <a href="{{ path('app_admin_matches_index', { status: 'live' }) }}" class="btn sm secondary">Voir tout</a>
+        </div>
+        <div class="card-body" style="padding: 16px;">
+            {% for match in liveMatchesList %}
+                {% set homeName = match.homeTeam ? match.homeTeam.name : 'Domicile' %}
+                {% set awayName = match.awayTeam ? match.awayTeam.name : (match.opponentName ?: 'Adversaire') %}
+                <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(239,68,68,.05), rgba(239,68,68,.02)); border: 1px solid rgba(239,68,68,.15); margin-bottom: 10px;">
+                    <div style="text-align: right; padding-right: 6px;">
+                        <div style="font-weight: 800; font-size: 14px;">{{ homeName }}</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="font-variant-numeric: tabular-nums; font-weight: 900; font-size: 22px; color: var(--live); padding: 4px 10px; background: rgba(239,68,68,.08); border-radius: 10px;">
+                            {{ match.scoreHome }} - {{ match.scoreAway ?: 0 }}
+                        </div>
+                        <div style="font-size: 11px; color: var(--live); font-weight: 800; margin-top: 4px;">● LIVE</div>
+                    </div>
+                    <div style="text-align: left; padding-left: 6px;">
+                        <div style="font-weight: 800; font-size: 14px;">{{ awayName }}</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <a href="{{ path('app_match_saisie', { id: match.id }) }}" class="btn sm info" style="flex:1; justify-content: center;">📝 Saisie live</a>
+                    <a href="{{ path('app_admin_matches_show', { id: match.id }) }}" class="btn sm secondary" style="flex:1; justify-content: center;">📋 Détails</a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header">
+            <h3>📅 Derniers matchs</h3>
+            <a href="{{ path('app_admin_matches_index') }}" class="btn sm secondary">Tous les matchs</a>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Match</th>
+                        <th>Score</th>
+                        <th>Statut</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for match in recentMatches %}
+                        {% set homeName = match.homeTeam ? match.homeTeam.name : 'Domicile' %}
+                        {% set awayName = match.awayTeam ? match.awayTeam.name : (match.opponentName ?: 'Adversaire') %}
+                        {% set sv = match.status.value %}
+                        <tr>
+                            <td style="white-space: nowrap; font-weight: 700;">
+                                {{ match.date|date('d/m/Y') }}<br>
+                                <span style="font-size: 11px; color: var(--muted); font-weight: 600;">{{ match.date|date('H:i') }}</span>
+                            </td>
+                            <td>
+                                <div class="team-cell">
+                                    <div class="team-name">{{ homeName }}</div>
+                                    <div class="team-tag">vs {{ awayName }}</div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if sv == 'scheduled' %}
+                                    <span style="color: var(--muted); font-weight: 700;">--</span>
+                                {% else %}
+                                    <span class="score-big">{{ match.scoreHome }} - {{ match.scoreAway ?: 0 }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if sv == 'live' %}<span class="badge live">LIVE</span>
+                                {% elseif sv == 'finished' %}<span class="badge finished">TERMINÉ</span>
+                                {% else %}<span class="badge scheduled">PROG.</span>{% endif %}
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <a href="{{ path('app_admin_matches_show', { id: match.id }) }}" class="btn sm secondary">👁️</a>
+                                    <a href="{{ path('app_admin_matches_edit', { id: match.id }) }}" class="btn sm warning">✏️</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

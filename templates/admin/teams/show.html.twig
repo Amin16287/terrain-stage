@@ -1,0 +1,163 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ team.name }} | Terrain Admin{% endblock %}
+{% block topbar_title %}👥 {{ team.name }}{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_teams_index') }}" class="btn sm secondary">← Liste équipes</a>
+    <a href="{{ path('app_admin_players_new') }}" class="btn sm info">➕ Joueur</a>
+    <a href="{{ path('app_admin_teams_edit', { id: team.id }) }}" class="btn sm warning">✏️ Modifier</a>
+    <form method="post" action="{{ path('app_admin_teams_delete', { id: team.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer cette équipe ? Les joueurs associés seront aussi supprimés.');" style="display: inline;">
+        <button type="submit" class="btn sm danger">🗑️</button>
+    </form>
+{% endblock %}
+
+{% block body %}
+<div class="detail-grid">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3>👥 Effectif ({{ players|length }} joueur(s))</h3>
+                <a href="{{ path('app_admin_players_new') }}" class="btn sm primary">➕ Ajouter un joueur</a>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Poste</th>
+                            <th>Naissance</th>
+                            <th>Licence</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in players %}
+                            <tr>
+                                <td style="font-weight: 800;">{{ p.lastName|upper }}</td>
+                                <td style="font-weight: 700;">{{ p.firstName }}</td>
+                                <td style="white-space: nowrap;">
+                                    {% if p.position %}<span class="badge info">{{ p.position }}</span>{% else %}<span style="color: var(--muted);">—</span>{% endif %}
+                                </td>
+                                <td style="white-space: nowrap; font-weight: 600; font-size: 12px; color: var(--muted);">
+                                    {% if p.birthDate %}{{ p.birthDate|date('d/m/Y') }}{% else %}—{% endif %}
+                                </td>
+                                <td style="font-weight: 600; font-size: 12px; color: var(--muted);">
+                                    {% if p.licenseNumber %}{{ p.licenseNumber }}{% else %}—{% endif %}
+                                </td>
+                                <td>
+                                    <div class="row-actions" style="justify-content: flex-end;">
+                                        <a href="{{ path('app_admin_players_edit', { id: p.id }) }}" class="btn sm warning">✏️</a>
+                                        <form method="post" action="{{ path('app_admin_players_delete', { id: p.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer ce joueur ?');" style="display: inline;">
+                                            <button type="submit" class="btn sm danger">🗑️</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        💡 Aucun joueur dans cette équipe. <a href="{{ path('app_admin_players_new') }}" style="color: var(--accent); font-weight: 800;">Ajouter le premier joueur</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3>ℹ️ Informations équipe</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                <div class="detail-info-row">
+                    <span class="label">Nom</span>
+                    <span class="value" style="text-align: right;">{{ team.name }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Club</span>
+                    <span class="value" style="text-align: right;">
+                        {% if team.club %}{{ team.club.name }}{% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Catégorie</span>
+                    <span class="value" style="text-align: right;">
+                        {% if team.category %}{{ team.category }}{% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Saison</span>
+                    <span class="value" style="text-align: right;">
+                        {% if team.season %}{{ team.season }}{% else %}—{% endif %}
+                    </span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">ID</span>
+                    <span class="value" style="text-align: right; font-size: 13px;">#{{ team.id }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Créée le</span>
+                    <span class="value" style="text-align: right; font-size: 13px;">{{ team.createdAt|date('d/m/Y') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>📊 Effectif</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                <div class="detail-info-row">
+                    <span class="label">Joueurs</span>
+                    <span class="value">{{ players|length }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Matchs à domicile</span>
+                    <span class="value">{{ team.homeMatches|length }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Matchs à l'extérieur</span>
+                    <span class="value">{{ team.awayMatches|length }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Entraîneurs</span>
+                    <span class="value">{{ team.coaches|length }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>🏟️ Club</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                {% if team.club %}
+                <div class="detail-info-row">
+                    <span class="label">Nom</span>
+                    <span class="value" style="text-align: right;">{{ team.club.name }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Ville</span>
+                    <span class="value" style="text-align: right;">{{ team.club.city ?: '—' }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Autres équipes</span>
+                    <span class="value">{{ team.club.teams|length - 1 }}</span>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 24px 12px; font-size: 13px;">
+                    Aucun club rattaché.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

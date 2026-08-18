@@ -1,0 +1,120 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ isNew ? 'Nouveau match' : 'Modifier le match' }} | Terrain Admin{% endblock %}
+{% block topbar_title %}{{ isNew ? '➕ Nouveau match' : '✏️ Modifier le match #' ~ (match.id ?? '') }}{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_matches_index') }}" class="btn sm secondary">← Retour liste</a>
+{% endblock %}
+
+{% block body %}
+<div class="page-title">
+    <h1>{{ isNew ? 'Créer un nouveau match' : 'Modifier le match' }}</h1>
+    <p>Renseignez les informations du match. Tous les champs peuvent être modifiés ultérieurement.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>{{ isNew ? 'Informations du match' : 'Édition' }}</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ isNew ? path('app_admin_matches_new') : path('app_admin_matches_edit', { id: match.id }) }}" class="form-grid">
+            {% set dateStr = '' %}
+            {% set timeStr = '15:00' %}
+            {% if match and match.date %}
+                {% set dateStr = match.date|date('Y-m-d') %}
+                {% set timeStr = match.date|date('H:i') %}
+            {% endif %}
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Équipe à domicile <span class="required">*</span></label>
+                    <select class="form-select" name="homeTeam" required>
+                        <option value="">-- Sélectionner une équipe --</option>
+                        {% for t in teams %}
+                            <option value="{{ t.id }}"
+                                {{ match and match.homeTeam and match.homeTeam.id == t.id ? 'selected' }}>
+                                {{ t.name }}{% if t.category %} ({{ t.category }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-help">Équipe de votre club jouant à domicile</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Équipe adverse</label>
+                    <select class="form-select" name="awayTeam">
+                        <option value="">-- Aucune (équipe hors club) --</option>
+                        {% for t in teams %}
+                            <option value="{{ t.id }}"
+                                {{ match and match.awayTeam and match.awayTeam.id == t.id ? 'selected' }}>
+                                {{ t.name }}{% if t.category %} ({{ t.category }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-help">Si l'adversaire n'est pas dans la liste, renseignez son nom en dessous</div>
+                </div>
+
+                
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Date <span class="required">*</span></label>
+                    <input type="date" class="form-input" name="date" required
+                        value="{{ dateStr }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Heure de début</label>
+                    <input type="time" class="form-input" name="time" value="{{ timeStr }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stade / Lieu</label>
+                    <input type="text" class="form-input" name="venue"
+                        value="{{ match ? match.venue : '' }}"
+                        placeholder="Nom du stade">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Statut <span class="required">*</span></label>
+                    <select class="form-select" name="status" required>
+                        {% for s in statuses %}
+                            <option value="{{ s.value }}"
+                                {{ match and match.status and match.status.value == s.value ? 'selected' : (isNew and s.value == 'scheduled' ? 'selected' : '') }}>
+                                {% if s.value == 'scheduled' %}🕒 Programmé
+                                {% elseif s.value == 'live' %}🔴 En direct
+                                {% else %}✓ Terminé{% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Score domicile</label>
+                    <input type="number" class="form-input" name="scoreHome" min="0"
+                        value="{{ match ? match.scoreHome : 0 }}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Score extérieur</label>
+                    <input type="number" class="form-input" name="scoreAway" min="0"
+                        value="{{ match ? (match.scoreAway ?? '') : '' }}"
+                        placeholder="0">
+                    <div class="form-help">Laissez vide pour les matchs programmés</div>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn primary lg">
+                     {{ isNew ? 'Créer le match' : 'Enregistrer les modifications' }}
+                </button>
+                <a href="{{ match ? path('app_admin_matches_show', { id: match.id }) : path('app_admin_matches_index') }}" class="btn secondary lg">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

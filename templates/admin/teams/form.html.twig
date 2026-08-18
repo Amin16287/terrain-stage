@@ -1,0 +1,69 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ isNew ? 'Nouvelle équipe' : 'Modifier l\'équipe' }} | Terrain Admin{% endblock %}
+{% block topbar_title %}{{ isNew ? '➕ Nouvelle équipe' : '✏️ Modifier l\'équipe' }}{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_teams_index') }}" class="btn sm secondary">← Retour liste</a>
+{% endblock %}
+
+{% block body %}
+<div class="page-title">
+    <h1>{{ isNew ? 'Créer une nouvelle équipe' : 'Modifier l\'équipe' }}</h1>
+    <p>Renseignez les informations de l'équipe.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Informations de l'équipe</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ isNew ? path('app_admin_teams_new') : path('app_admin_teams_edit', { id: team.id }) }}" class="form-grid">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Nom de l'équipe <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="name" required
+                        value="{{ team ? team.name : '' }}"
+                        placeholder="Ex : Olympique Lyonnais U15">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Club de rattachement</label>
+                    <select class="form-select" name="club">
+                        <option value="">-- Sélectionner un club --</option>
+                        {% for c in clubs %}
+                            <option value="{{ c.id }}"
+                                {{ team and team.club and team.club.id == c.id ? 'selected' }}>
+                                {{ c.name }}{% if c.city %} ({{ c.city }}){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Catégorie</label>
+                    <input type="text" class="form-input" name="category"
+                        value="{{ team ? (team.category ?? '') : '' }}"
+                        placeholder="Ex : U15, Senior, Féminin...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Saison</label>
+                    <input type="text" class="form-input" name="season"
+                        value="{{ team ? (team.season ?? '') : '' }}"
+                        placeholder="Ex : 2025-2026">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn primary lg">
+                     {{ isNew ? 'Créer l\'équipe' : 'Enregistrer' }}
+                </button>
+                <a href="{{ team ? path('app_admin_teams_show', { id: team.id }) : path('app_admin_teams_index') }}" class="btn secondary lg">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

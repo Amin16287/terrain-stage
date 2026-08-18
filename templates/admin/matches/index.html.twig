@@ -1,0 +1,135 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Matchs | Terrain Admin{% endblock %}
+{% block topbar_title %}⚽ Gestion des matchs{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_matches_new') }}" class="btn primary sm">
+        <span>＋</span> Nouveau match
+    </a>
+{% endblock %}
+
+{% block body %}
+<div class="page-title">
+    <h1>Matchs</h1>
+    <p>Créez, modifiez et gérez tous vos matchs depuis cette interface.</p>
+</div>
+
+<form method="get" action="{{ path('app_admin_matches_index') }}" class="filters-bar">
+    <div class="form-group">
+        <label class="form-label">Statut</label>
+        <select class="form-select" name="status">
+            <option value="all" {{ filters.status == 'all' ? 'selected' }}>Tous les statuts</option>
+            <option value="live" {{ filters.status == 'live' ? 'selected' }}>🔴 En direct</option>
+            <option value="scheduled" {{ filters.status == 'scheduled' ? 'selected' }}>🕒 Programmés</option>
+            <option value="finished" {{ filters.status == 'finished' ? 'selected' }}>✓ Terminés</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Équipe</label>
+        <select class="form-select" name="team">
+            <option value="">Toutes les équipes</option>
+            {% for t in teams %}
+                <option value="{{ t.id }}" {{ filters.team == t.id ? 'selected' }}>{{ t.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Du</label>
+        <input type="date" class="form-input" name="date_from" value="{{ filters.date_from }}">
+    </div>
+    <div class="form-group">
+        <label class="form-label">Au</label>
+        <input type="date" class="form-input" name="date_to" value="{{ filters.date_to }}">
+    </div>
+    <div style="display: flex; gap: 8px;">
+        <button type="submit" class="btn secondary" style="justify-self: end; width: auto;">🔍 Filtrer</button>
+        <a href="{{ path('app_admin_matches_index') }}" class="btn secondary" style="justify-self: end; width: auto;">✕ Reset</a>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header">
+        <h3>{{ matches|length }} match(s) trouvé(s)</h3>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date / Heure</th>
+                    <th>Domicile</th>
+                    <th>Score</th>
+                    <th>Extérieur</th>
+                    <th>Lieu</th>
+                    <th>Statut</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for match in matches %}
+                    {% set sv = match.status.value %}
+                    {% set homeName = match.homeTeam ? match.homeTeam.name : 'Équipe Domicile' %}
+                    {% set awayName = match.awayTeam ? match.awayTeam.name : (match.opponentName ?: 'Adversaire') %}
+                    <tr>
+                        <td style="white-space: nowrap; font-weight: 700;">
+                            {{ match.date|date('d/m/Y') }}<br>
+                            <span style="font-size: 11px; color: var(--muted); font-weight: 600;">{{ match.date|date('H:i') }}</span>
+                        </td>
+                        <td>
+                            <div class="team-cell">
+                                <div class="team-name">{{ homeName }}</div>
+                                {% if match.homeTeam and match.homeTeam.category %}
+                                    <div class="team-tag">{{ match.homeTeam.category }}</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="text-align: center;">
+                            {% if sv == 'scheduled' %}
+                                <span style="color: var(--muted); font-weight: 800;">vs</span>
+                            {% else %}
+                                <span class="score-big">{{ match.scoreHome }} - {{ match.scoreAway ?: 0 }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="team-cell">
+                                <div class="team-name">{{ awayName }}</div>
+                                {% if match.awayTeam and match.awayTeam.category %}
+                                    <div class="team-tag">{{ match.awayTeam.category }}</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--muted);">
+                            {{ match.venue }}
+                        </td>
+                        <td>
+                            {% if sv == 'live' %}<span class="badge live">LIVE</span>
+                            {% elseif sv == 'finished' %}<span class="badge finished">TERMINÉ</span>
+                            {% else %}<span class="badge scheduled">PROGRAMMÉ</span>{% endif %}
+                        </td>
+                        <td>
+                            <div class="row-actions" style="justify-content: flex-end;">
+                                <a href="{{ path('app_admin_matches_show', { id: match.id }) }}" class="btn sm secondary" title="Détails">👁️</a>
+                                {% if sv == 'live' or sv == 'scheduled' %}
+                                    <a href="{{ path('app_match_saisie', { id: match.id }) }}" class="btn sm info" title="Saisie live">📝</a>
+                                {% endif %}
+                                <a href="{{ path('app_admin_matches_edit', { id: match.id }) }}" class="btn sm warning" title="Modifier">✏️</a>
+                                <form method="post" action="{{ path('app_admin_matches_delete', { id: match.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer ce match ? Cette action est irréversible.');">
+                                    <button type="submit" class="btn sm danger" title="Supprimer">🗑️</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                💡 Aucun match trouvé. <a href="{{ path('app_admin_matches_new') }}" style="color: var(--accent); font-weight: 800;">Créer le premier match</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -38,7 +38,6 @@ VALUES
   (7,  'Bradley',   'Barcola',   '2010-09-02'::date, 'Ailier droit',       'FRA-000007', NOW(), 1),
   (8,  'Karl',      'Toko Ekambi','2010-09-14'::date,'Ailier gauche',      'FRA-000008', NOW(), 1),
   (9,  'Moussa',    'Dembélé',   '2010-07-12'::date, 'Attaquant',          'FRA-000009', NOW(), 1),
-  (10, 'Alexandre', 'Lacazette', '2010-05-28'::date, 'Attaquant',          'FRA-000010', NOW(), 1),
   (11, 'Houssem',   'Aouar',     '2010-06-30'::date, 'Milieu',             'FRA-000011', NOW(), 1),
   (12, 'Malick',    'Fofana',    '2010-01-21'::date, 'Défenseur',          'FRA-000012', NOW(), 1)
 ON CONFLICT (id) DO NOTHING;
@@ -77,7 +76,7 @@ VALUES (
 INSERT INTO game_match (id, date, venue, status, score_home, score_away, opponent_name, created_at, home_team_id, away_team_id)
 VALUES (
   3,
-  (NOW()::date + (3 - EXTRACT(ISODOW FROM NOW())::int + 7) % 7 + 1) + INTERVAL '15 hours',
+  NOW()::date + INTERVAL '15 hours',
   'Centre Technique · Terrain 2',
   'scheduled',
   0,
@@ -88,7 +87,7 @@ VALUES (
   3
 ) ON CONFLICT (id) DO NOTHING;
 
--- ===== Match 4 : TERMINÉ (dimanche dernier) =====
+-- ===== Match 4 : TERMINÉ (dimanche dernier) ====
 INSERT INTO game_match (id, date, venue, status, score_home, score_away, opponent_name, created_at, home_team_id, away_team_id)
 VALUES (
   4,

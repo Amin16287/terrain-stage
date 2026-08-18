@@ -38,37 +38,28 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (request.mode === 'navigate') {
-        event.respondWith(
-            fetch(request).catch(() => caches.match('/offline.html'))
-        );
+    event.respondWith(
+        fetch(request).catch(() =>
+            caches.match(request).then((cached) => cached || caches.match('/offline.html'))
+        )
+    );
 
-        return;
-    }
+    return;
+}
+
 
     const url = new URL(request.url);
     const isStaticAsset = ['style', 'script', 'image', 'font'].includes(request.destination);
 
-    if (!isStaticAsset && url.origin !== self.location.origin) {
-        return;
-    }
+   if (url.origin !== self.location.origin && !isStaticAsset) {
+    return;
+}
 
-    if (isStaticAsset || url.origin === self.location.origin) {
-        event.respondWith(
-            caches.match(request).then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
-                }
-
-                return fetch(request).then((networkResponse) => {
-                    const responseClone = networkResponse.clone();
-
-                    caches.open(STATIC_CACHE).then((cache) => {
-                        cache.put(request, responseClone);
-                    });
-
-                    return networkResponse;
-                });
-            })
-        );
-    }
+// Ressources statiques : cache d'abord, elles ne bougent pas
+if (isStaticAsset) {
+    event.respondWith(
+        caches.match(request).then((cached) => cached || fetchAndCache(request))
+    );
+    return;
+}
 });

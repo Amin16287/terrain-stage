@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
   <rect width="512" height="512" fill="#16A34A"/>
   <circle cx="256" cy="256" r="176" fill="#15803D"/>
-  <rect x="144" y="152" width="224" height="208" rx="24" stroke="white" stroke-width="20"/>
-  <path d="M256 152V360" stroke="white" stroke-width="20"/>
-  <circle cx="256" cy="256" r="36" stroke="white" stroke-width="20"/>
-  <path d="M144 214H108V298H144" stroke="white" stroke-width="20"/>
-  <path d="M368 214H404V298H368" stroke="white" stroke-width="20"/>
+  <rect x="144" y="152" width="224" height="208" rx="24" stroke="white" stroke-width="16"/>
+  <path d="M256 152V360" stroke="white" stroke-width="16"/>
+  <circle cx="256" cy="256" r="32" stroke="white" stroke-width="16"/>
+  <path d="M144 214H116V298H144" stroke="white" stroke-width="16"/>
+  <path d="M368 214H396V298H368" stroke="white" stroke-width="16"/>
+  <text x="256" y="316" text-anchor="middle" font-family="ui-rounded, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="112" font-weight="900" letter-spacing="-6" fill="white" stroke="#15803D" stroke-width="8" paint-order="stroke fill markers">TR1</text>
 </svg>

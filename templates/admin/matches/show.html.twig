@@ -1,0 +1,269 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Match #{{ match.id }} | Terrain Admin{% endblock %}
+{% block topbar_title %}⚽ Match #{{ match.id }}{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_matches_index') }}" class="btn sm secondary">← Liste matchs</a>
+    <a href="{{ path('app_match_saisie', { id: match.id }) }}" class="btn sm info">Saisie live</a>
+    <a href="{{ path('app_admin_matches_edit', { id: match.id }) }}" class="btn sm warning">✏️ Modifier</a>
+    <form method="post" action="{{ path('app_admin_matches_delete', { id: match.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer ce match ? Cette action est irréversible.');" style="display: inline;">
+        <button type="submit" class="btn sm danger">🗑️ Supprimer</button>
+    </form>
+{% endblock %}
+
+{% block body %}
+{% set sv = match.status.value %}
+{% set homeName = match.homeTeam ? match.homeTeam.name : 'Équipe Domicile' %}
+{% set awayName = match.awayTeam ? match.awayTeam.name : (match.opponentName ?: 'Adversaire') %}
+{% set homeCat = match.homeTeam ? (match.homeTeam.category ?: '') : '' %}
+{% set awayCat = match.awayTeam ? (match.awayTeam.category ?: '') : '' %}
+
+<div class="scoreboard" style="margin-bottom: 24px;">
+    {% if sv == 'live' %}<div class="scoreboard-status">🔴 EN DIRECT</div>
+    {% elseif sv == 'finished' %}<div class="scoreboard-status" style="background: rgba(22,163,74,.25);">✓ TERMINÉ</div>
+    {% else %}<div class="scoreboard-status" style="background: rgba(100,116,139,.25);">🕒 PROGRAMMÉ</div>{% endif %}
+
+    <div class="scoreboard-teams">
+        <div class="sb-team home">
+            <div class="sb-team-name">{{ homeName }}</div>
+            {% if homeCat %}<div class="sb-team-tag">{{ homeCat }}{% if match.homeTeam.season %} · {{ match.homeTeam.season }}{% endif %}</div>{% endif %}
+        </div>
+        <div class="sb-score">
+            <span>{{ match.scoreHome }}</span>
+            <span class="dash">-</span>
+            <span>{{ match.scoreAway ?: 0 }}</span>
+        </div>
+        <div class="sb-team away">
+            <div class="sb-team-name">{{ awayName }}</div>
+            {% if awayCat %}<div class="sb-team-tag">{{ awayCat }}{% if match.awayTeam.season %} · {{ match.awayTeam.season }}{% endif %}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="scoreboard-meta">
+        <span>📅 {{ match.date|date('l d F Y')|capitalize }}</span>
+        <span>🕒 {{ match.date|date('H:i') }}</span>
+        <span>📍 {{ match.venue ?: 'Lieu non défini' }}</span>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3>✏️ Modifications rapides</h3>
+            </div>
+            <div class="card-body" style="padding: 20px 24px;">
+                <div style="display: grid; gap: 20px;">
+                    <div>
+                        <div style="font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;">Score</div>
+                        <form method="post" action="{{ path('app_admin_matches_update_score', { id: match.id }) }}" class="inline-score-form">
+                            <div class="form-group" style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: 800; color: var(--muted); margin-bottom: 4px;">Domicile</label>
+                                <input type="number" class="form-input" name="scoreHome" min="0" value="{{ match.scoreHome }}" required>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label style="font-size: 11px; font-weight: 800; color: var(--muted); margin-bottom: 4px;">Extérieur</label>
+                                <input type="number" class="form-input" name="scoreAway" min="0" value="{{ match.scoreAway ?? 0 }}" required>
+                            </div>
+                            <div style="display: flex; align-items: flex-end;">
+                                <button type="submit" class="btn primary" style="width: 100%;"> Mettre à jour</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div>
+                        <div style="font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px;">Statut du match</div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <form method="post" action="{{ path('app_admin_matches_update_status', { id: match.id }) }}" style="display: inline;">
+                                <input type="hidden" name="status" value="scheduled">
+                                <button type="submit" class="btn sm {{ sv == 'scheduled' ? 'secondary' : 'secondary' }}" style="{{ sv == 'scheduled' ? 'border-color: var(--scheduled); color: var(--scheduled);' : '' }}">🕒 Programmé</button>
+                            </form>
+                            <form method="post" action="{{ path('app_admin_matches_update_status', { id: match.id }) }}" style="display: inline;">
+                                <input type="hidden" name="status" value="live">
+                                <button type="submit" class="btn sm {{ sv == 'live' ? 'danger' : 'secondary' }}">🔴 Démarrer (LIVE)</button>
+                            </form>
+                            <form method="post" action="{{ path('app_admin_matches_update_status', { id: match.id }) }}" style="display: inline;">
+                                <input type="hidden" name="status" value="finished">
+                                <button type="submit" class="btn sm {{ sv == 'finished' ? 'primary' : 'secondary' }}">✓ Terminer</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>📋 Événements du match ({{ match.matchEvents|length }})</h3>
+                {% if sv != 'scheduled' %}
+                <a href="{{ path('app_match_saisie', { id: match.id }) }}" class="btn sm info">➕ Ajouter événement</a>
+                {% endif %}
+            </div>
+            <div class="card-body" style="padding: 16px 20px;">
+                {% if match.matchEvents is not empty %}
+                    {% for evt in match.matchEvents %}
+                        {% set iconType = evt.type.value %}
+                        <div class="event-item">
+                            <div class="event-minute">{{ evt.minute }}'</div>
+                            <div class="event-info">
+                                <div class="event-type">
+                                    {% if evt.type.value == 'goal' %}⚽ But
+                                    {% elseif evt.type.value == 'shot' %}🎯 Tir
+                                    {% elseif evt.type.value == 'key_pass' %}🎯 Pass décisive
+                                    {% elseif evt.type.value == 'card_yellow' %}🟡 Carton jaune
+                                    {% elseif evt.type.value == 'card_red' %}🔴 Carton rouge
+                                    {% elseif evt.type.value == 'substitution' %}🔄 Remplacement
+                                    {% else %}{{ evt.type.value }}{% endif %}
+                                </div>
+                                <div class="event-player">
+                                    {% if evt.player %}
+                                        {{ evt.player.firstName }} {{ evt.player.lastName|upper }}
+                                        {% if evt.player.position %}<span style="color: var(--muted); font-size: 12px; font-weight: 600;"> · {{ evt.player.position }}</span>{% endif %}
+                                    {% else %}
+                                        <em style="color: var(--muted);">Joueur inconnu</em>
+                                    {% endif %}
+                                </div>
+                                {% if evt.comment %}<div class="event-comment">💬 {{ evt.comment }}</div>{% endif %}
+                            </div>
+                            <div class="event-icon {{ iconType }}">
+                                {% if iconType == 'goal' %}⚽
+                                {% elseif iconType == 'shot' %}🎯
+                                {% elseif iconType == 'key_pass' %}🎯
+                                {% elseif iconType == 'card_yellow' %}🟡
+                                {% elseif iconType == 'card_red' %}🔴
+                                {% elseif iconType == 'substitution' %}🔄
+                                {% else %}📌{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        💡 Aucun événement enregistré pour ce match.
+                        {% if sv != 'scheduled' %}<br><a href="{{ path('app_match_saisie', { id: match.id }) }}" style="color: var(--accent); font-weight: 800;">Aller à la saisie live →</a>{% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3>ℹ️ Informations</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                <div class="detail-info-row">
+                    <span class="label">Identifiant</span>
+                    <span class="value">#{{ match.id }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Date</span>
+                    <span class="value">{{ match.date|date('d/m/Y') }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Heure</span>
+                    <span class="value">{{ match.date|date('H:i') }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Lieu</span>
+                    <span class="value">{{ match.venue ?: '-' }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Statut</span>
+                    <span>
+                        {% if sv == 'live' %}<span class="badge live">LIVE</span>
+                        {% elseif sv == 'finished' %}<span class="badge finished">TERMINÉ</span>
+                        {% else %}<span class="badge scheduled">PROGRAMMÉ</span>{% endif %}
+                    </span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Créé le</span>
+                    <span class="value" style="font-size: 13px;">{{ match.createdAt|date('d/m/Y H:i') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>👥 Équipes</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                <div class="detail-info-row">
+                    <span class="label">Domicile</span>
+                    <span class="value" style="text-align: right;">
+                        {% if match.homeTeam %}
+                            <a href="{{ path('app_admin_teams_show', { id: match.homeTeam.id }) }}" style="color: var(--accent); text-decoration: none;">
+                                {{ match.homeTeam.name }}
+                            </a>
+                        {% else %}
+                            Non défini
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Extérieur</span>
+                    <span class="value" style="text-align: right;">
+                        {% if match.awayTeam %}
+                            <a href="{{ path('app_admin_teams_show', { id: match.awayTeam.id }) }}" style="color: var(--accent); text-decoration: none;">
+                                {{ match.awayTeam.name }}
+                            </a>
+                        {% elseif match.opponentName %}
+                            {{ match.opponentName }} <span style="font-size: 11px; color: var(--muted);">(hors club)</span>
+                        {% else %}
+                            Non défini
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>📊 Statistiques</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                {% set goals = 0 %}
+                {% set shots = 0 %}
+                {% set yellow = 0 %}
+                {% set red = 0 %}
+                {% set subs = 0 %}
+                {% set passes = 0 %}
+                {% for e in match.matchEvents %}
+                    {% if e.type.value == 'goal' %}{% set goals = goals + 1 %}
+                    {% elseif e.type.value == 'shot' %}{% set shots = shots + 1 %}
+                    {% elseif e.type.value == 'card_yellow' %}{% set yellow = yellow + 1 %}
+                    {% elseif e.type.value == 'card_red' %}{% set red = red + 1 %}
+                    {% elseif e.type.value == 'substitution' %}{% set subs = subs + 1 %}
+                    {% elseif e.type.value == 'key_pass' %}{% set passes = passes + 1 %}
+                    {% endif %}
+                {% endfor %}
+                <div class="detail-info-row">
+                    <span class="label">⚽ Buts</span>
+                    <span class="value">{{ goals }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">🎯 Tirs</span>
+                    <span class="value">{{ shots }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">🎯 Passes déc.</span>
+                    <span class="value">{{ passes }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">🟡 Cartons jaunes</span>
+                    <span class="value">{{ yellow }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">🔴 Cartons rouges</span>
+                    <span class="value">{{ red }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">🔄 Remplacements</span>
+                    <span class="value">{{ subs }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

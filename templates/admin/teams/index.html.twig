@@ -1,0 +1,95 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Équipes &amp; Joueurs | Terrain Admin{% endblock %}
+{% block topbar_title %}👥 Équipes &amp; Joueurs{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_players_new') }}" class="btn secondary sm">
+        <span>＋</span> Nouveau joueur
+    </a>
+    <a href="{{ path('app_admin_teams_new') }}" class="btn primary sm">
+        <span>＋</span> Nouvelle équipe
+    </a>
+{% endblock %}
+
+{% block body %}
+<div class="page-title">
+    <h1>Gestion des équipes</h1>
+    <p>Gérez vos équipes, catégories, saisons et joueurs associés.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>{{ teams|length }} équipe(s)</h3>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Équipe</th>
+                    <th>Club</th>
+                    <th>Catégorie</th>
+                    <th>Saison</th>
+                    <th>Joueurs</th>
+                    <th>Créée le</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for team in teams %}
+                    <tr>
+                        <td>
+                            <div class="team-cell">
+                                <div class="team-name">{{ team.name }}</div>
+                            </div>
+                        </td>
+                        <td style="font-weight: 700;">
+                            {% if team.club %}
+                                {{ team.club.name }}
+                                {% if team.club.city %}<span style="color: var(--muted); font-size: 11px; font-weight: 600;"> · {{ team.club.city }}</span>{% endif %}
+                            {% else %}
+                                <span style="color: var(--muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="white-space: nowrap; font-weight: 700;">
+                            {% if team.category %}
+                                <span class="badge info">{{ team.category }}</span>
+                            {% else %}
+                                <span style="color: var(--muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td style="white-space: nowrap; font-weight: 700;">
+                            {% if team.season %}{{ team.season }}{% else %}<span style="color: var(--muted);">—</span>{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge" style="background: rgba(59,130,246,.1); color: var(--info); font-variant-numeric: tabular-nums;">
+                                👥 {{ team.players|length }}
+                            </span>
+                        </td>
+                        <td style="white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--muted);">
+                            {{ team.createdAt|date('d/m/Y') }}
+                        </td>
+                        <td>
+                            <div class="row-actions" style="justify-content: flex-end;">
+                                <a href="{{ path('app_admin_teams_show', { id: team.id }) }}" class="btn sm secondary" title="Détails">👁️</a>
+                                <a href="{{ path('app_admin_teams_edit', { id: team.id }) }}" class="btn sm warning" title="Modifier">✏️</a>
+                                <form method="post" action="{{ path('app_admin_teams_delete', { id: team.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer cette équipe ? Cela supprimera aussi ses joueurs.'));" style="display: inline;">
+                                    <button type="submit" class="btn sm danger" title="Supprimer">🗑️</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                💡 Aucune équipe trouvée. <a href="{{ path('app_admin_teams_new') }}" style="color: var(--accent); font-weight: 800;">Créer la première équipe</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
