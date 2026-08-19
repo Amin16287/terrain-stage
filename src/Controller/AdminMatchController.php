@@ -285,7 +285,8 @@ final class AdminMatchController extends AbstractController
     {
         $match = $gameMatchRepository->find($id);
         if (!$match) {
-            throw $this->createNotFoundException('Match non trouvé');
+            $this->addFlash('warning', 'Ce match a déjà été supprimé.');
+            return $this->redirectToRoute('app_admin_matches_index');
         }
 
         $em->remove($match);
