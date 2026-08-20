@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'terrain-static-v1';
+const STATIC_CACHE = 'terrain-static-v2';
 const APP_SHELL = [
     '/',
     '/offline.html',
@@ -6,7 +6,18 @@ const APP_SHELL = [
     '/icons/icon-192.svg',
     '/icons/icon-512.svg',
     '/icons/maskable-512.svg',
+    '/styles/app.css',
 ];
+
+function fetchAndCache(request) {
+    return fetch(request).then((networkResponse) => {
+        if (networkResponse.ok) {
+            const clone = networkResponse.clone();
+            caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
+        }
+        return networkResponse;
+    });
+}
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -38,28 +49,30 @@ self.addEventListener('fetch', (event) => {
     }
 
     if (request.mode === 'navigate') {
-    event.respondWith(
-        fetch(request).catch(() =>
-            caches.match(request).then((cached) => cached || caches.match('/offline.html'))
-        )
-    );
-
-    return;
-}
-
+        event.respondWith(
+            fetch(request).catch(() =>
+                caches.match(request).then((cached) => cached || caches.match('/offline.html'))
+            )
+        );
+        return;
+    }
 
     const url = new URL(request.url);
     const isStaticAsset = ['style', 'script', 'image', 'font'].includes(request.destination);
 
-   if (url.origin !== self.location.origin && !isStaticAsset) {
-    return;
-}
+    if (url.origin !== self.location.origin && !isStaticAsset) {
+        return;
+    }
 
-// Ressources statiques : cache d'abord, elles ne bougent pas
-if (isStaticAsset) {
+    // Ressources statiques : cache d'abord, elles ne bougent pas
+    if (isStaticAsset) {
+        event.respondWith(
+            caches.match(request).then((cached) => cached || fetchAndCache(request))
+        );
+        return;
+    }
+
     event.respondWith(
-        caches.match(request).then((cached) => cached || fetchAndCache(request))
+        fetchAndCache(request).catch(() => caches.match(request))
     );
-    return;
-}
 });

@@ -27,18 +27,11 @@ final class MatchSelectionController extends AbstractController
             ->andWhere('m.date >= :startOfDay AND m.date <= :endOfDay')
             ->setParameter('startOfDay', $startOfDay)
             ->setParameter('endOfDay', $endOfDay)
-           // ->orderBy('m.date', 'ASC')
+            ->setParameter('liveStatus', MatchStatus::LIVE)
+            ->orderBy('CASE WHEN m.status = :liveStatus THEN 0 ELSE 1 END')
+            ->addOrderBy('m.date', 'ASC')
             ->getQuery()
             ->getResult();
-
-        usort($todayMatches, static function ($a, $b) {
-            $aLive = $a->getStatus() === MatchStatus::LIVE ? 0 : 1;
-            $bLive = $b->getStatus() === MatchStatus::LIVE ? 0 : 1;
-            if ($aLive !== $bLive) {
-                return $aLive <=> $bLive;
-            }
-            return $a->getDate() <=> $b->getDate();
-        });
 
         $weekMatches = $gameMatchRepository->createQueryBuilder('m')
             ->leftJoin('m.homeTeam', 'ht')
@@ -51,7 +44,7 @@ final class MatchSelectionController extends AbstractController
             ->setParameter('endOfWeek', $endOfWeek)
             ->setParameter('startOfDay', $startOfDay)
             ->setParameter('endOfDay', $endOfDay)
-            //->orderBy('m.date', 'ASC')
+            ->orderBy('m.date', 'ASC')
             ->getQuery()
             ->getResult();
 
@@ -66,7 +59,7 @@ final class MatchSelectionController extends AbstractController
             ->setMaxResults(10)
             ->getQuery()
             ->getResult();
-       
+
         return $this->render('match/selection.html.twig', [
             'todayMatches' => $todayMatches,
             'weekMatches' => $weekMatches,
