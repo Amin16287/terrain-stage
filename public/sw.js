@@ -6,7 +6,6 @@ const APP_SHELL = [
     '/icons/icon-192.svg',
     '/icons/icon-512.svg',
     '/icons/maskable-512.svg',
-    '/styles/app.css',
 ];
 
 function fetchAndCache(request) {
