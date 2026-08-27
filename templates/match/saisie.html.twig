@@ -525,6 +525,31 @@
     pointer-events: none;
   }
   .toast.error { background: var(--danger); box-shadow: 0 10px 30px rgba(220,38,38,.40); }
+  .toast.warning { background: var(--warning); box-shadow: 0 10px 30px rgba(245,158,11,.40); }
+
+  .sync-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 999px;
+    margin-left: 4px;
+  }
+  .sync-badge.pending {
+    background: rgba(245,158,11,.15);
+    color: #b45309;
+    border: 1px solid rgba(245,158,11,.3);
+  }
+  .sync-badge.failed {
+    background: rgba(220,38,38,.12);
+    color: var(--danger);
+    border: 1px solid rgba(220,38,38,.25);
+  }
+  .sync-badge.synced {
+    background: rgba(22,163,74,.12);
+    color: var(--accent-dark);
+  }
+  .event-row.is-pending { background: rgba(245,158,11,.05); }
+  .event-row.is-failed { background: rgba(220,38,38,.04); }
 </style>
 
 {% set homeName = match.homeTeam ? match.homeTeam.name : 'Équipe domicile' %}
@@ -676,6 +701,13 @@
 
     let currentMinute = 0;
     let pendingEventType = null;
+    let isSyncing = false;
+
+    /* Chronomètre LIVE */
+    const LIVE_STORAGE_KEY = `terrain_live_${matchId}`;
+    let liveTimerInterval = null;
+    let liveTickTimer = null;
+    let liveOffsetSec = 0;
 
     const scoreboardScore = document.getElementById('scoreboard-score');
     const statusChip = document.getElementById('status-chip');
@@ -688,19 +720,165 @@
     const playerSearchInput = document.getElementById('player-search-input');
     const playerList = document.getElementById('player-list');
 
+    /* ============================================================
+     *  Wrapper IndexedDB — terrain_db / store pending_events
+     * ============================================================ */
+    const IDB_NAME = 'terrain_db';
+    const IDB_VERSION = 1;
+    const STORE = 'pending_events';
+
+    const pendingDB = {
+      _db: null,
+      async _ensureDB() {
+        if (this._db) return this._db;
+        return new Promise((resolve, reject) => {
+          const req = indexedDB.open(IDB_NAME, IDB_VERSION);
+          req.onupgradeneeded = () => {
+            const db = req.result;
+            if (!db.objectStoreNames.contains(STORE)) {
+              const os = db.createObjectStore(STORE, { keyPath: 'clientUuid' });
+              os.createIndex('idx_matchId', 'matchId', { unique: false });
+              os.createIndex('idx_syncStatus', 'syncStatus', { unique: false });
+            }
+          };
+          req.onsuccess = () => {
+            this._db = req.result;
+            resolve(this._db);
+          };
+          req.onerror = () => reject(req.error);
+        });
+      },
+      async add(event) {
+        const db = await this._ensureDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).add(event);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      },
+      async updateStatus(clientUuid, syncStatus, errorMsg = null) {
+        const db = await this._ensureDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          const os = tx.objectStore(STORE);
+          const getReq = os.get(clientUuid);
+          getReq.onsuccess = () => {
+            const rec = getReq.result;
+            if (!rec) { resolve(); return; }
+            rec.syncStatus = syncStatus;
+            if (errorMsg !== null) rec.errorMsg = errorMsg;
+            os.put(rec);
+            tx.oncomplete = () => resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        });
+      },
+      async getAllByMatch(mId) {
+        const db = await this._ensureDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE, 'readonly');
+          const req = tx.objectStore(STORE).index('idx_matchId').getAll(mId);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      },
+      async getAllByStatus(status) {
+        const db = await this._ensureDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE, 'readonly');
+          const req = tx.objectStore(STORE).index('idx_syncStatus').getAll(status);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
+        });
+      }
+    };
+
+    /* ============================================================
+     *  Chronomètre LIVE — démarre/arrête avec le statut du match
+     * ============================================================ */
+    function getLiveState() {
+      try {
+        const raw = localStorage.getItem(LIVE_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function saveLiveState(state) {
+      try { localStorage.setItem(LIVE_STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }
+    function clearLiveState() {
+      try { localStorage.removeItem(LIVE_STORAGE_KEY); } catch (e) {}
+    }
+    function computeLiveMinute() {
+      const state = getLiveState();
+      if (!state || !state.startedAt) return null;
+      const elapsedSec = Math.floor((Date.now() - state.startedAt) / 1000);
+      const totalSec = Math.max(0, elapsedSec + (state.offsetSec || 0));
+      return Math.min(240, Math.floor(totalSec / 60));
+    }
+    function tickLiveTimer() {
+      const m = computeLiveMinute();
+      if (m === null) return;
+      currentMinute = m;
+      updateMinuteDisplay();
+    }
+    function startLiveTimer(resetToZero = false) {
+      stopLiveTimer();
+      const existing = getLiveState();
+      const startedAt = (existing && !resetToZero) ? existing.startedAt : Date.now();
+      let offsetSec = (existing && !resetToZero) ? (existing.offsetSec || 0) : 0;
+      if (resetToZero) {
+        currentMinute = 0;
+        updateMinuteDisplay();
+      }
+      saveLiveState({ startedAt, offsetSec });
+      liveOffsetSec = offsetSec;
+      tickLiveTimer();
+      liveTickTimer = setInterval(tickLiveTimer, 1000);
+    }
+    function stopLiveTimer() {
+      if (liveTickTimer) { clearInterval(liveTickTimer); liveTickTimer = null; }
+      if (liveTimerInterval) { clearInterval(liveTimerInterval); liveTimerInterval = null; }
+    }
+    function applyManualOffset(newMinuteValue) {
+      const state = getLiveState();
+      if (!state || !state.startedAt) return;
+      const elapsedSec = Math.floor((Date.now() - state.startedAt) / 1000);
+      const wantedSec = newMinuteValue * 60;
+      state.offsetSec = Math.max(-elapsedSec, wantedSec - elapsedSec);
+      liveOffsetSec = state.offsetSec;
+      saveLiveState(state);
+    }
+    function restoreLiveTimerIfNeeded(statusFromChip) {
+      const status = statusFromChip || (statusChip && statusChip.dataset.currentStatus);
+      if (status === 'live') {
+        const m = computeLiveMinute();
+        if (m !== null) {
+          currentMinute = m;
+          updateMinuteDisplay();
+        }
+        startLiveTimer(false);
+      } else {
+        stopLiveTimer();
+        clearLiveState();
+      }
+    }
+
     function updateMinuteDisplay() {
       minuteDisplay.textContent = currentMinute + '′';
       currentMinuteDisplay.textContent = currentMinute;
     }
 
     document.getElementById('minute-plus').addEventListener('click', () => {
-      currentMinute = Math.min(120, currentMinute + 1);
+      currentMinute = Math.min(240, currentMinute + 1);
       updateMinuteDisplay();
+      applyManualOffset(currentMinute);
     });
 
     document.getElementById('minute-minus').addEventListener('click', () => {
       currentMinute = Math.max(0, currentMinute - 1);
       updateMinuteDisplay();
+      applyManualOffset(currentMinute);
     });
 
     function openPlayerModal(eventType) {
@@ -745,12 +923,12 @@
       });
     });
 
-    function showToast(message, isError = false) {
+    function showToast(message, variant = 'success') {
       const toast = document.createElement('div');
-      toast.className = 'toast' + (isError ? ' error' : '');
+      toast.className = 'toast' + (variant === 'error' ? ' error' : variant === 'warning' ? ' warning' : '');
       toast.textContent = message;
       document.body.appendChild(toast);
-      setTimeout(() => toast.remove(), 1500);
+      setTimeout(() => toast.remove(), 1800);
     }
 
     function getIconForType(type) {
@@ -765,13 +943,36 @@
       }
     }
 
-    function prependEventRow(event) {
+    function syncBadgeHTML(syncStatus) {
+      if (!syncStatus || syncStatus === 'synced') {
+        return '<span class="sync-badge synced" title="Synchronisé">✓</span>';
+      }
+      if (syncStatus === 'pending') {
+        return '<span class="sync-badge pending" title="En attente de synchro">⏳ En attente</span>';
+      }
+      if (syncStatus === 'failed') {
+        return '<span class="sync-badge failed" title="Échec de synchro">❌ Échec</span>';
+      }
+      return '';
+    }
+
+    function rowClassForSync(syncStatus) {
+      if (syncStatus === 'pending') return 'is-pending';
+      if (syncStatus === 'failed') return 'is-failed';
+      return '';
+    }
+
+    function prependEventRow(event, syncStatus = 'synced', useClientUuid = false) {
       const emptyEl = eventsTimeline.querySelector('.empty-team');
       if (emptyEl) emptyEl.remove();
 
       const row = document.createElement('div');
-      row.className = 'event-row';
-      row.dataset.eventId = event.id;
+      row.className = 'event-row ' + rowClassForSync(syncStatus);
+      if (useClientUuid && event.clientUuid) {
+        row.setAttribute('data-client-uuid', event.clientUuid);
+      } else if (event.id !== undefined && event.id !== null && event.id !== '') {
+        row.setAttribute('data-event-id', event.id);
+      }
       const min = String(event.minute).padStart(2, '0');
       const typeClass = event.type === 'key_pass' ? 'key' : event.type;
       row.innerHTML = `
@@ -779,9 +980,9 @@
         <div class="type-icon ${typeClass}">${getIconForType(event.type)}</div>
         <div class="who">
           <span class="name">${event.playerName}</span>
-          <span class="role">${event.playerPosition || ''}</span>
+          <span class="role">${event.playerPosition || ''}${syncBadgeHTML(syncStatus)}</span>
         </div>
-        <button class="undo-btn" type="button" data-undo-id="${event.id}" title="Annuler">↺</button>
+        <button class="undo-btn" type="button" data-undo-id="${event.id ?? ''}" title="Annuler">↺</button>
       `;
 
       if (eventsTimeline.firstChild) {
@@ -790,17 +991,46 @@
         eventsTimeline.appendChild(row);
       }
 
-      bindUndoButton(row.querySelector('[data-undo-id]'));
+      const undoBtn = row.querySelector('[data-undo-id]');
+      if (useClientUuid && event.clientUuid) {
+        undoBtn.setAttribute('data-undo-client-uuid', event.clientUuid);
+      }
+      bindUndoButton(undoBtn);
       updateEventsCount();
     }
 
-    function removeEventRow(eventId) {
-      const row = eventsTimeline.querySelector(`[data-event-id="${eventId}"]`);
+    function removeEventRow(eventId, clientUuid = null) {
+      let row = null;
+      if (eventId) {
+        row = eventsTimeline.querySelector(`[data-event-id="${eventId}"]`);
+      }
+      if (!row && clientUuid) {
+        row = eventsTimeline.querySelector(`[data-client-uuid="${clientUuid}"]`);
+      }
       if (row) row.remove();
       if (!eventsTimeline.querySelector('.event-row')) {
         eventsTimeline.innerHTML = '<div class="empty-team">Aucun événement saisi pour le moment. Appuyez sur un bouton ci-dessus pour commencer.</div>';
       }
       updateEventsCount();
+    }
+
+    function updateTimelineBadge(clientUuid, newSyncStatus) {
+      const row = eventsTimeline.querySelector(`[data-client-uuid="${clientUuid}"]`);
+      if (!row) return;
+      row.classList.remove('is-pending', 'is-failed');
+      if (newSyncStatus === 'pending') row.classList.add('is-pending');
+      if (newSyncStatus === 'failed') row.classList.add('is-failed');
+      const roleEl = row.querySelector('.who .role');
+      if (!roleEl) return;
+      const existingBadge = roleEl.querySelector('.sync-badge');
+      const newBadgeHTML = syncBadgeHTML(newSyncStatus);
+      if (existingBadge) {
+        const tmp = document.createElement('span');
+        tmp.innerHTML = newBadgeHTML;
+        existingBadge.replaceWith(tmp.firstChild);
+      } else {
+        roleEl.insertAdjacentHTML('beforeend', newBadgeHTML);
+      }
     }
 
     function updateEventsCount() {
@@ -812,27 +1042,106 @@
       scoreboardScore.innerHTML = `<span>${scoreHome}</span><span class="dash">-</span><span>${scoreAway}</span>`;
     }
 
-    async function submitEvent(playerId) {
-      try {
-        const res = await fetch(`/match/${matchId}/event/create`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            type: pendingEventType,
-            minute: currentMinute,
-            playerId: playerId,
-            comment: null
-          })
-        });
+    async function postEventToServer(payload) {
+      const res = await fetch(`/match/${matchId}/event/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const err = new Error(data.error || `Erreur ${res.status}`);
+        err.data = data;
+        throw err;
+      }
+      return data;
+    }
 
-        const data = await res.json();
-        if (!res.ok) {
-          showToast(data.error || 'Erreur lors de la création', true);
+    async function submitEvent(playerId, playerRowEl) {
+      const playerName = playerRowEl ? playerRowEl.dataset.playerName : (
+        (document.querySelector(`.player-row[data-player-id="${playerId}"]`) || {}).dataset?.playerName || 'Joueur'
+      );
+      const playerPosition = playerRowEl
+        ? (playerRowEl.querySelector('.pos')?.textContent ?? '')
+        : (document.querySelector(`.player-row[data-player-id="${playerId}"] .pos`)?.textContent ?? '');
+
+      const type = pendingEventType;
+
+      if (type === 'shot') {
+        const clientUuid = crypto.randomUUID();
+        const localEvent = {
+          clientUuid,
+          matchId: Number(matchId),
+          type,
+          minute: currentMinute,
+          playerId: Number(playerId),
+          playerName,
+          playerPosition,
+          syncStatus: 'pending',
+          createdAt: Date.now()
+        };
+
+        const payload = {
+          clientUuid,
+          type,
+          minute: currentMinute,
+          playerId: Number(playerId),
+          comment: null
+        };
+
+        const commitOffline = async (warningMsg) => {
+          try {
+            await pendingDB.add(localEvent);
+            prependEventRow(localEvent, 'pending', true);
+            showToast(warningMsg, 'warning');
+            closePlayerModal();
+          } catch (dbErr) {
+            console.error(dbErr);
+            showToast('Impossible de sauvegarder localement', 'error');
+          }
+        };
+
+        if (!navigator.onLine) {
+          await commitOffline('Tir mis en attente (hors ligne)');
           return;
         }
+
+        try {
+          const data = await postEventToServer(payload);
+          localEvent.syncStatus = 'synced';
+          await pendingDB.add(localEvent);
+          prependEventRow(data.event, 'synced');
+          updateScoreboard(data.event.scoreHome, data.event.scoreAway);
+          showToast(data.duplicated ? 'Tir (déjà synchronisé)' : 'Tir enregistré');
+          closePlayerModal();
+          return;
+        } catch (err) {
+          const isNetworkError =
+            (err instanceof TypeError) ||
+            (err?.message && /network|fetch|connection/i.test(err.message)) ||
+            !navigator.onLine;
+
+          if (!isNetworkError) {
+            console.error(err);
+            showToast(err.message || 'Erreur', 'error');
+            return;
+          }
+
+          await commitOffline('Tir mis en attente (hors ligne)');
+          return;
+        }
+      }
+
+      try {
+        const data = await postEventToServer({
+          type,
+          minute: currentMinute,
+          playerId: playerId,
+          comment: null
+        });
 
         prependEventRow(data.event);
         updateScoreboard(data.event.scoreHome, data.event.scoreAway);
@@ -845,23 +1154,33 @@
           card_red: 'Carton rouge enregistré',
           substitution: 'Remplacement enregistré'
         };
-        showToast(labels[pendingEventType] || 'Événement enregistré');
+        showToast(labels[type] || 'Événement enregistré');
         closePlayerModal();
       } catch (err) {
         console.error(err);
-        showToast('Erreur réseau', true);
+        showToast('Erreur réseau', 'error');
       }
     }
 
     document.querySelectorAll('.player-row[data-player-id]').forEach(row => {
-      row.addEventListener('click', () => submitEvent(parseInt(row.dataset.playerId, 10)));
+      row.addEventListener('click', () => submitEvent(parseInt(row.dataset.playerId, 10), row));
     });
 
     function bindUndoButton(btn) {
       if (!btn) return;
       btn.addEventListener('click', async () => {
+        const clientUuid = btn.getAttribute('data-undo-client-uuid');
         const eventId = parseInt(btn.dataset.undoId, 10);
         if (!confirm('Supprimer cet événement ?')) return;
+
+        if (clientUuid) {
+          removeEventRow(null, clientUuid);
+          showToast('Événement local retiré');
+          return;
+        }
+
+        if (!eventId) { showToast('Événement introuvable', 'error'); return; }
+
         try {
           const res = await fetch(`/match/${matchId}/event/${eventId}/delete`, {
             method: 'POST',
@@ -873,7 +1192,7 @@
           });
           const data = await res.json();
           if (!res.ok) {
-            showToast(data.error || 'Erreur', true);
+            showToast(data.error || 'Erreur', 'error');
             return;
           }
           removeEventRow(eventId);
@@ -881,7 +1200,7 @@
           showToast('Événement supprimé');
         } catch (err) {
           console.error(err);
-          showToast('Erreur réseau', true);
+          showToast('Erreur réseau', 'error');
         }
       });
     }
@@ -910,14 +1229,92 @@
         if (data.status === 'live' && !statusChip.querySelector('span')) {
           statusChip.innerHTML = '';
         }
+
+        if (data.status === 'live') {
+          const wasLive = current === 'live';
+          startLiveTimer(!wasLive);
+          showToast('⏱ Chrono démarré');
+        } else {
+          stopLiveTimer();
+          if (data.status === 'finished') {
+            showToast('Chrono arrêté — match terminé');
+          } else {
+            showToast('Chrono arrêté');
+          }
+          if (data.status !== 'live') {
+            clearLiveState();
+          }
+        }
+
         showToast('Statut : ' + labels[data.status]);
       } catch (err) {
         console.error(err);
-        showToast('Erreur réseau', true);
+        showToast('Erreur réseau', 'error');
       }
     });
 
-    updateMinuteDisplay();
+    /* ============================================================
+     *  Synchronisation automatique
+     * ============================================================ */
+    async function syncPendingEvents() {
+      if (isSyncing) return;
+      if (!navigator.onLine) return;
+      isSyncing = true;
+      try {
+        const pending = await pendingDB.getAllByStatus('pending');
+        const toSync = pending.filter(e => e.matchId === Number(matchId));
+        if (toSync.length === 0) { isSyncing = false; return; }
+
+        for (const ev of toSync) {
+          try {
+            const data = await postEventToServer({
+              clientUuid: ev.clientUuid,
+              type: ev.type,
+              minute: ev.minute,
+              playerId: ev.playerId,
+              comment: null
+            });
+            await pendingDB.updateStatus(ev.clientUuid, 'synced');
+            updateTimelineBadge(ev.clientUuid, 'synced');
+            if (data.event && (data.event.scoreHome !== undefined)) {
+              updateScoreboard(data.event.scoreHome, data.event.scoreAway);
+            }
+          } catch (syncErr) {
+            console.warn('Sync échouée pour', ev.clientUuid, syncErr);
+            await pendingDB.updateStatus(ev.clientUuid, 'failed', syncErr.message || 'sync_error');
+            updateTimelineBadge(ev.clientUuid, 'failed');
+          }
+        }
+      } finally {
+        isSyncing = false;
+      }
+    }
+
+    async function restorePendingTimeline() {
+      const locals = await pendingDB.getAllByMatch(Number(matchId));
+      locals.sort((a, b) => a.createdAt - b.createdAt);
+      for (const ev of locals) {
+        const already = eventsTimeline.querySelector(`[data-client-uuid="${ev.clientUuid}"]`);
+        if (already) continue;
+        if (ev.syncStatus === 'synced') continue;
+        prependEventRow(ev, ev.syncStatus, true);
+      }
+    }
+
+    window.addEventListener('online', () => {
+      showToast('Connexion rétablie — Synchronisation…', 'warning');
+      syncPendingEvents();
+    });
+
+    (async function init() {
+      updateMinuteDisplay();
+      restoreLiveTimerIfNeeded();
+      await pendingDB._ensureDB();
+      await restorePendingTimeline();
+      if (navigator.onLine) {
+        syncPendingEvents();
+      }
+    })();
   });
 </script>
 {% endblock %}

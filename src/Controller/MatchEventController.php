@@ -84,7 +84,8 @@ final class MatchEventController extends AbstractController
         EntityManagerInterface $em,
         GameMatchRepository $gameMatchRepository,
         PlayerRepository $playerRepository,
-        UserRepository $userRepository
+        UserRepository $userRepository,
+        MatchEventRepository $matchEventRepository
     ): JsonResponse {
         $match = $gameMatchRepository->find($id);
         if (!$match) {
@@ -99,9 +100,14 @@ final class MatchEventController extends AbstractController
         $zoneX = $data['zoneX'] ?? null;
         $zoneY = $data['zoneY'] ?? null;
         $comment = $data['comment'] ?? null;
+        $clientUuid = $data['clientUuid'] ?? null;
 
-        if (!$type || !$minute || !$playerId) {
-            return $this->json(['error' => 'Champs requis manquants'], 400);
+        $typeIsValid = is_string($type) && $type !== '';
+        $minuteIsValid = ($minute !== null && $minute !== '' && is_numeric($minute) && (int)$minute >= 0 && (int)$minute <= 240);
+        $playerIdIsValid = ($playerId !== null && $playerId !== '' && is_numeric($playerId) && (int)$playerId > 0);
+
+        if (!$typeIsValid || !$minuteIsValid || !$playerIdIsValid) {
+            return $this->json(['error' => 'Champs requis manquants ou invalides'], 400);
         }
 
         $enumType = EventType::tryFrom($type);
@@ -119,14 +125,33 @@ final class MatchEventController extends AbstractController
             return $this->json(['error' => 'Aucun utilisateur trouvé. Veuillez créer un utilisateur test.'], 400);
         }
 
+        if ($clientUuid !== null) {
+            $existing = $matchEventRepository->findOneBy(['clientUuid' => $clientUuid]);
+            if ($existing) {
+                return $this->json([
+                    'success' => true,
+                    'duplicated' => true,
+                    'event' => [
+                        'id' => $existing->getId(),
+                        'type' => $existing->getType()->value,
+                        'minute' => $existing->getMinute(),
+                        'playerName' => $existing->getPlayer() ? ($existing->getPlayer()->getFirstName() . ' ' . strtoupper($existing->getPlayer()->getLastName())) : '',
+                        'playerPosition' => $existing->getPlayer() ? $existing->getPlayer()->getPosition() : null,
+                        'scoreHome' => $match->getScoreHome(),
+                        'scoreAway' => $match->getScoreAway() ?? 0,
+                    ],
+                ]);
+            }
+        }
+
         $event = new MatchEvent();
         $event->setType($enumType);
         $event->setMinute((int) $minute);
         $event->setPlayer($player);
         $event->setRelatedMatch($match);
         $event->setTaggedBy($user);
-        $event->setClientUuid(Uuid::v4()->toRfc4122());
-        $event->setSyncStatus(SyncStatus::PENDING);
+        $event->setClientUuid($clientUuid ?? Uuid::v4()->toRfc4122());
+        $event->setSyncStatus(SyncStatus::SYNCED);
 
         if ($zoneX !== null) {
             $event->setZoneX((float) $zoneX);
@@ -147,6 +172,7 @@ final class MatchEventController extends AbstractController
 
         return $this->json([
             'success' => true,
+            'duplicated' => false,
             'event' => [
                 'id' => $event->getId(),
                 'type' => $event->getType()->value,
