@@ -277,4 +277,118 @@ final class AdminTeamController extends AbstractController
         $this->addFlash('success', 'Joueur supprimé avec succès !');
         return $this->redirectToRoute('app_admin_teams_show', ['id' => $teamId ?? 0]);
     }
+
+    #[Route('/clubs', name: 'app_admin_clubs_index', methods: ['GET'])]
+    public function indexClubs(ClubRepository $clubRepository): Response
+    {
+        $clubs = $clubRepository->findBy([], ['name' => 'ASC']);
+
+        return $this->render('admin/clubs/index.html.twig', [
+            'clubs' => $clubs,
+        ]);
+    }
+
+    #[Route('/clubs/new', name: 'app_admin_clubs_new', methods: ['GET', 'POST'])]
+    public function newClub(Request $request, EntityManagerInterface $em): Response
+    {
+        if ($request->isMethod('POST')) {
+            $name = trim((string) $request->request->get('name', ''));
+            $city = trim((string) $request->request->get('city', ''));
+
+            if ($name === '') {
+                $this->addFlash('error', 'Le nom du club est obligatoire.');
+                return $this->redirectToRoute('app_admin_clubs_new');
+            }
+
+            $club = new Club();
+            $club->setName($name);
+            if ($city !== '') {
+                $club->setCity($city);
+            }
+
+            $em->persist($club);
+            $em->flush();
+
+            $this->addFlash('success', 'Club créé avec succès !');
+            return $this->redirectToRoute('app_admin_clubs_show', ['id' => $club->getId()]);
+        }
+
+        return $this->render('admin/clubs/form.html.twig', [
+            'isNew' => true,
+            'club' => null,
+        ]);
+    }
+
+    #[Route('/clubs/{id}/edit', name: 'app_admin_clubs_edit', methods: ['GET', 'POST'])]
+    public function editClub(int $id, Request $request, EntityManagerInterface $em, ClubRepository $clubRepository): Response
+    {
+        $club = $clubRepository->find($id);
+        if (!$club) {
+            throw $this->createNotFoundException('Club non trouvé');
+        }
+
+        if ($request->isMethod('POST')) {
+            $name = trim((string) $request->request->get('name', ''));
+            $city = trim((string) $request->request->get('city', ''));
+
+            if ($name === '') {
+                $this->addFlash('error', 'Le nom du club est obligatoire.');
+                return $this->redirectToRoute('app_admin_clubs_edit', ['id' => $id]);
+            }
+
+            $club->setName($name);
+            $club->setCity($city !== '' ? $city : null);
+
+            $em->flush();
+
+            $this->addFlash('success', 'Club mis à jour avec succès !');
+            return $this->redirectToRoute('app_admin_clubs_show', ['id' => $club->getId()]);
+        }
+
+        return $this->render('admin/clubs/form.html.twig', [
+            'isNew' => false,
+            'club' => $club,
+        ]);
+    }
+
+    #[Route('/clubs/{id}', name: 'app_admin_clubs_show', methods: ['GET'])]
+    public function showClub(int $id, ClubRepository $clubRepository, TeamRepository $teamRepository): Response
+    {
+        $club = $clubRepository->find($id);
+        if (!$club) {
+            throw $this->createNotFoundException('Club non trouvé');
+        }
+
+        $teams = $teamRepository->findBy(['club' => $club], ['name' => 'ASC']);
+
+        return $this->render('admin/clubs/show.html.twig', [
+            'club' => $club,
+            'teams' => $teams,
+        ]);
+    }
+
+    #[Route('/clubs/{id}/delete', name: 'app_admin_clubs_delete', methods: ['POST'])]
+    public function deleteClub(int $id, EntityManagerInterface $em, ClubRepository $clubRepository): Response
+    {
+        $club = $clubRepository->find($id);
+        if (!$club) {
+            throw $this->createNotFoundException('Club non trouvé');
+        }
+
+        if ($club->getTeams()->count() > 0) {
+            $this->addFlash('error', 'Impossible de supprimer : ce club possède encore ' . $club->getTeams()->count() . ' équipe(s). Supprimez ou détachez les équipes d\'abord.');
+            return $this->redirectToRoute('app_admin_clubs_show', ['id' => $id]);
+        }
+
+        if ($club->getUsers()->count() > 0) {
+            $this->addFlash('error', 'Impossible de supprimer : des utilisateurs (' . $club->getUsers()->count() . ') sont encore rattachés à ce club.');
+            return $this->redirectToRoute('app_admin_clubs_show', ['id' => $id]);
+        }
+
+        $em->remove($club);
+        $em->flush();
+
+        $this->addFlash('success', 'Club supprimé avec succès !');
+        return $this->redirectToRoute('app_admin_clubs_index');
+    }
 }

@@ -1,0 +1,131 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ club.name }} | Terrain Admin{% endblock %}
+{% block topbar_title %}🏟️ {{ club.name }}{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_clubs_index') }}" class="btn sm secondary">← Liste clubs</a>
+    <a href="{{ path('app_admin_teams_new') }}" class="btn sm info">➕ Équipe</a>
+    <a href="{{ path('app_admin_clubs_edit', { id: club.id }) }}" class="btn sm warning">✏️ Modifier</a>
+    <form method="post" action="{{ path('app_admin_clubs_delete', { id: club.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer ce club ? Vérifiez qu\'il n\'a plus d\'équipes ni d\'utilisateurs rattachés.');" style="display: inline;">
+        <button type="submit" class="btn sm danger">🗑️</button>
+    </form>
+{% endblock %}
+
+{% block body %}
+<div class="detail-grid">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3>👥 Équipes du club ({{ teams|length }})</h3>
+                <a href="{{ path('app_admin_teams_new') }}" class="btn sm primary">➕ Ajouter une équipe</a>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Équipe</th>
+                            <th>Catégorie</th>
+                            <th>Saison</th>
+                            <th>Joueurs</th>
+                            <th>Créée le</th>
+                            <th style="text-align: right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in teams %}
+                            <tr>
+                                <td style="font-weight: 800;">{{ team.name }}</td>
+                                <td style="white-space: nowrap; font-weight: 700;">
+                                    {% if team.category %}<span class="badge info">{{ team.category }}</span>{% else %}<span style="color: var(--muted);">—</span>{% endif %}
+                                </td>
+                                <td style="white-space: nowrap; font-weight: 700;">
+                                    {% if team.season %}{{ team.season }}{% else %}<span style="color: var(--muted);">—</span>{% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge" style="background: rgba(59,130,246,.1); color: var(--info); font-variant-numeric: tabular-nums;">
+                                        👥 {{ team.players|length }}
+                                    </span>
+                                </td>
+                                <td style="white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--muted);">
+                                    {{ team.createdAt|date('d/m/Y') }}
+                                </td>
+                                <td>
+                                    <div class="row-actions" style="justify-content: flex-end;">
+                                        <a href="{{ path('app_admin_teams_show', { id: team.id }) }}" class="btn sm secondary" title="Détails">👁️</a>
+                                        <a href="{{ path('app_admin_teams_edit', { id: team.id }) }}" class="btn sm warning" title="Modifier">✏️</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6">
+                                    <div class="empty-state">
+                                        💡 Aucune équipe rattachée à ce club. <a href="{{ path('app_admin_teams_new') }}" style="color: var(--accent); font-weight: 800;">Créer la première équipe</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3>ℹ️ Informations club</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                <div class="detail-info-row">
+                    <span class="label">Nom</span>
+                    <span class="value" style="text-align: right;">{{ club.name }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Ville</span>
+                    <span class="value" style="text-align: right;">{{ club.city ?: '—' }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">ID</span>
+                    <span class="value" style="text-align: right; font-size: 13px;">#{{ club.id }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Créé le</span>
+                    <span class="value" style="text-align: right; font-size: 13px;">{{ club.createdAt|date('d/m/Y') }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>📊 Statistiques</h3>
+            </div>
+            <div class="card-body" style="padding: 4px 24px;">
+                <div class="detail-info-row">
+                    <span class="label">Équipes</span>
+                    <span class="value">{{ club.teams|length }}</span>
+                </div>
+                <div class="detail-info-row">
+                    <span class="label">Utilisateurs rattachés</span>
+                    <span class="value">{{ club.users|length }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+                <h3>⚠️ Avant suppression</h3>
+            </div>
+            <div class="card-body" style="padding: 18px 20px; font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 600;">
+                Pour pouvoir supprimer ce club :
+                <ul style="margin-top: 10px; padding-left: 20px;">
+                    <li>Aucune équipe ne doit lui être rattachée (actuellement {{ club.teams|length }})</li>
+                    <li>Aucun utilisateur ne doit lui être rattaché (actuellement {{ club.users|length }})</li>
+                </ul>
+                <p style="margin-top: 12px;">Détachez/supprimez d'abord ces éléments.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

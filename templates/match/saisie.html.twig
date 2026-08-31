@@ -147,11 +147,23 @@
     font-size: 11px;
     font-weight: 800;
     color: rgba(248,250,252,.75);
+    transition: color .15s ease;
   }
   .sb-connectivity::before {
     content: "";
     width: 7px; height: 7px; border-radius: 999px;
     background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34,197,94,.22);
+    transition: all .15s ease;
+  }
+  .sb-connectivity.is-offline,
+  .sb-connectivity.offline {
+    color: rgba(254,202,202,.85);
+  }
+  .sb-connectivity.is-offline::before,
+  .sb-connectivity.offline::before {
+    background: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239,68,68,.22);
   }
 
   .nav-back {
@@ -550,6 +562,89 @@
   }
   .event-row.is-pending { background: rgba(245,158,11,.05); }
   .event-row.is-failed { background: rgba(220,38,38,.04); }
+
+  /* --- Mini-terrain (zone picker) --- */
+  .pitch-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 68 / 105;
+    max-height: 62vh;
+    margin: 4px auto 12px;
+    border-radius: 20px;
+    overflow: hidden;
+    touch-action: manipulation;
+    user-select: none;
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.18), var(--shadow-md);
+  }
+  .pitch-wrap svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .pitch-wrap .marker {
+    position: absolute;
+    width: 28px; height: 28px;
+    border-radius: 999px;
+    background: rgba(239,68,68,.92);
+    border: 3px solid #fff;
+    box-shadow: 0 6px 14px rgba(0,0,0,.35), 0 0 0 6px rgba(239,68,68,.18);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    left: 0; top: 0;
+    opacity: 0;
+    transition: opacity .14s ease;
+  }
+  .pitch-wrap .marker.visible { opacity: 1; }
+  .pitch-hint {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: center;
+  }
+  .pitch-coords {
+    display: inline-flex; gap: 8px;
+    margin-left: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(99,102,241,.12);
+    color: #3730a3;
+    font-size: 11px;
+    font-weight: 800;
+  }
+  .zone-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 10px;
+    margin-top: 6px;
+  }
+  .zone-actions button {
+    min-height: 52px;
+    border-radius: 16px;
+    font-weight: 900;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    border: 0;
+    transition: transform .08s ease;
+  }
+  .zone-actions button:active { transform: scale(.97); }
+  .zone-actions .btn-skip {
+    background: #f1f5f2;
+    color: var(--muted);
+  }
+  .zone-actions .btn-confirm {
+    background: linear-gradient(180deg, #16a34a, #15803d);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(22,163,74,.28);
+  }
+  .zone-actions .btn-confirm:disabled {
+    background: #cbd5d1;
+    color: #64748b;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
 </style>
 
 {% set homeName = match.homeTeam ? match.homeTeam.name : 'Équipe domicile' %}
@@ -694,6 +789,63 @@
   </div>
 </div>
 
+<div class="sheet-backdrop" id="zone-modal" role="dialog" aria-modal="true" aria-label="Choisir la position sur le terrain">
+  <div class="sheet" role="document">
+    <div class="sheet-handle"></div>
+
+    <div class="sheet-head">
+      <h3 id="zone-modal-title">Position — Tir</h3>
+      <button class="sheet-close" type="button" aria-label="Fermer" id="zone-modal-close">✕</button>
+    </div>
+
+    <p class="pitch-hint">
+      Appuyez sur le terrain pour indiquer la zone de l'événement
+      <span class="pitch-coords" id="zone-coords" style="display:none">X: 0 · Y: 0</span>
+    </p>
+
+    <div class="pitch-wrap" id="pitch-wrap">
+      <svg viewBox="0 0 680 1050" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1f8f4a"/>
+            <stop offset="100%" stop-color="#15803d"/>
+          </linearGradient>
+          <pattern id="stripes" width="680" height="150" patternUnits="userSpaceOnUse">
+            <rect width="680" height="75" fill="#1a7d3b"/>
+            <rect y="75" width="680" height="75" fill="#15803d"/>
+          </pattern>
+        </defs>
+        <rect x="0" y="0" width="680" height="1050" fill="url(#grass)"/>
+        <rect x="0" y="0" width="680" height="1050" fill="url(#stripes)" opacity=".35"/>
+
+        <!-- lignes blanches -->
+        <rect x="20" y="20" width="640" height="1010" fill="none" stroke="#ffffff" stroke-width="6"/>
+        <line x1="20" y1="525" x2="660" y2="525" stroke="#ffffff" stroke-width="6"/>
+        <circle cx="340" cy="525" r="91" fill="none" stroke="#ffffff" stroke-width="6"/>
+        <circle cx="340" cy="525" r="8" fill="#ffffff"/>
+
+        <!-- surface de réparation HAUT (adversaire) -->
+        <rect x="140" y="20" width="400" height="200" fill="none" stroke="#ffffff" stroke-width="6"/>
+        <rect x="230" y="20" width="220" height="80" fill="none" stroke="#ffffff" stroke-width="6"/>
+        <rect x="290" y="20" width="100" height="14" fill="#ffffff"/>
+        <path d="M290 110 A50 50 0 0 1 390 110" fill="none" stroke="#ffffff" stroke-width="6"/>
+
+        <!-- surface BAS (notre équipe) -->
+        <rect x="140" y="830" width="400" height="200" fill="none" stroke="#ffffff" stroke-width="6"/>
+        <rect x="230" y="950" width="220" height="80" fill="none" stroke="#ffffff" stroke-width="6"/>
+        <rect x="290" y="1016" width="100" height="14" fill="#ffffff"/>
+        <path d="M290 940 A50 50 0 0 0 390 940" fill="none" stroke="#ffffff" stroke-width="6"/>
+      </svg>
+      <div class="marker" id="pitch-marker" aria-hidden="true"></div>
+    </div>
+
+    <div class="zone-actions">
+      <button class="btn-skip" type="button" id="zone-skip">Sans position</button>
+      <button class="btn-confirm" type="button" id="zone-confirm" disabled>Confirmer la position</button>
+    </div>
+  </div>
+</div>
+
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     const matchId = document.querySelector('[data-match-id]').dataset.matchId;
@@ -701,6 +853,8 @@
 
     let currentMinute = 0;
     let pendingEventType = null;
+    let pendingPlayerChoice = null;
+    let pendingZone = null;
     let isSyncing = false;
 
     /* Chronomètre LIVE */
@@ -719,6 +873,15 @@
     const playerModalTitle = document.getElementById('player-modal-title');
     const playerSearchInput = document.getElementById('player-search-input');
     const playerList = document.getElementById('player-list');
+
+    const zoneModal = document.getElementById('zone-modal');
+    const zoneModalTitle = document.getElementById('zone-modal-title');
+    const zoneCoords = document.getElementById('zone-coords');
+    const pitchWrap = document.getElementById('pitch-wrap');
+    const pitchMarker = document.getElementById('pitch-marker');
+    const zoneConfirmBtn = document.getElementById('zone-confirm');
+    const zoneSkipBtn = document.getElementById('zone-skip');
+    const zoneCloseBtn = document.getElementById('zone-modal-close');
 
     /* ============================================================
      *  Wrapper IndexedDB — terrain_db / store pending_events
@@ -758,6 +921,12 @@
         });
       },
       async updateStatus(clientUuid, syncStatus, errorMsg = null) {
+        return this.patch(clientUuid, Object.assign(
+          { syncStatus },
+          errorMsg !== null ? { errorMsg } : {}
+        ));
+      },
+      async patch(clientUuid, fields) {
         const db = await this._ensureDB();
         return new Promise((resolve, reject) => {
           const tx = db.transaction(STORE, 'readwrite');
@@ -766,10 +935,9 @@
           getReq.onsuccess = () => {
             const rec = getReq.result;
             if (!rec) { resolve(); return; }
-            rec.syncStatus = syncStatus;
-            if (errorMsg !== null) rec.errorMsg = errorMsg;
+            Object.assign(rec, fields);
             os.put(rec);
-            tx.oncomplete = () => resolve();
+            tx.oncomplete = () => resolve(rec);
           };
           tx.onerror = () => reject(tx.error);
         });
@@ -790,6 +958,47 @@
           const req = tx.objectStore(STORE).index('idx_syncStatus').getAll(status);
           req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
+        });
+      },
+      async getAllByStatuses(statuses) {
+        const results = [];
+        const seen = new Set();
+        for (const s of statuses) {
+          const rows = await this.getAllByStatus(s);
+          for (const r of rows) {
+            if (seen.has(r.clientUuid)) continue;
+            seen.add(r.clientUuid);
+            results.push(r);
+          }
+        }
+        return results;
+      },
+      async delete(clientUuid) {
+        const db = await this._ensureDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).delete(clientUuid);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      },
+      async deleteSyncedOlderThan(ts) {
+        const db = await this._ensureDB();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE, 'readwrite');
+          const os = tx.objectStore(STORE);
+          const req = os.openCursor();
+          req.onsuccess = () => {
+            const cursor = req.result;
+            if (!cursor) return;
+            const rec = cursor.value;
+            if (rec.syncStatus === 'synced' && (rec.syncedAt || 0) < ts) {
+              cursor.delete();
+            }
+            cursor.continue();
+          };
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
         });
       }
     };
@@ -901,6 +1110,71 @@
       playerModal.classList.remove('open');
       pendingEventType = null;
     }
+
+    function openZoneModal(eventType) {
+      pendingZone = null;
+      const labels = { shot: 'Tir', goal: 'But' };
+      zoneModalTitle.textContent = `Position — ${labels[eventType] || 'Événement'}`;
+      zoneCoords.style.display = 'none';
+      zoneCoords.textContent = 'X: 0 · Y: 0';
+      pitchMarker.classList.remove('visible');
+      pitchMarker.style.left = '0px';
+      pitchMarker.style.top = '0px';
+      zoneConfirmBtn.disabled = true;
+      zoneModal.classList.add('open');
+    }
+    function closeZoneModal() {
+      zoneModal.classList.remove('open');
+      pendingZone = null;
+    }
+
+    function handlePitchTap(clientX, clientY) {
+      const rect = pitchWrap.getBoundingClientRect();
+      const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+      const y = Math.max(0, Math.min(rect.height, clientY - rect.top));
+      const zoneX = Number((x / rect.width) * 100);
+      const zoneY = Number((y / rect.height) * 100);
+      pendingZone = {
+        zoneX: Number(zoneX.toFixed(2)),
+        zoneY: Number(zoneY.toFixed(2))
+      };
+      pitchMarker.style.left = x + 'px';
+      pitchMarker.style.top = y + 'px';
+      pitchMarker.classList.add('visible');
+      zoneCoords.style.display = '';
+      zoneCoords.textContent = `X: ${pendingZone.zoneX.toFixed(0)} · Y: ${pendingZone.zoneY.toFixed(0)}`;
+      zoneConfirmBtn.disabled = false;
+    }
+
+    function bindPitchEvents() {
+      if (!pitchWrap) return;
+      pitchWrap.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        handlePitchTap(e.clientX, e.clientY);
+      });
+    }
+    bindPitchEvents();
+
+    zoneCloseBtn.addEventListener('click', closeZoneModal);
+    zoneModal.addEventListener('click', (e) => {
+      if (e.target === zoneModal) closeZoneModal();
+    });
+    zoneSkipBtn.addEventListener('click', () => {
+      pendingZone = null;
+      const choice = pendingPlayerChoice;
+      const type = pendingEventType;
+      closeZoneModal();
+      if (!choice || !type) return;
+      commitEvent(choice.playerId, choice.playerRowEl, null, null);
+    });
+    zoneConfirmBtn.addEventListener('click', () => {
+      const z = pendingZone;
+      const choice = pendingPlayerChoice;
+      const type = pendingEventType;
+      closeZoneModal();
+      if (!choice || !type || !z) return;
+      commitEvent(choice.playerId, choice.playerRowEl, z.zoneX, z.zoneY);
+    });
 
     function filterPlayers(query) {
       const q = query.toLowerCase();
@@ -1051,16 +1325,34 @@
         },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: `Erreur ${res.status}` }));
       if (!res.ok) {
         const err = new Error(data.error || `Erreur ${res.status}`);
         err.data = data;
+        err.status = res.status;
         throw err;
       }
       return data;
     }
 
-    async function submitEvent(playerId, playerRowEl) {
+    const EVENT_LABELS = {
+      shot: 'Tir',
+      goal: 'But',
+      key_pass: 'Passe clé',
+      card_yellow: 'Carton jaune',
+      card_red: 'Carton rouge',
+      substitution: 'Remplacement'
+    };
+    const EVENT_TOAST_SUCCESS = {
+      shot: 'Tir enregistré',
+      goal: '⚽ But enregistré !',
+      key_pass: 'Passe clé enregistrée',
+      card_yellow: 'Carton jaune enregistré',
+      card_red: 'Carton rouge enregistré',
+      substitution: 'Remplacement enregistré'
+    };
+
+    async function commitEvent(playerId, playerRowEl, zoneX, zoneY) {
       const playerName = playerRowEl ? playerRowEl.dataset.playerName : (
         (document.querySelector(`.player-row[data-player-id="${playerId}"]`) || {}).dataset?.playerName || 'Joueur'
       );
@@ -1069,101 +1361,95 @@
         : (document.querySelector(`.player-row[data-player-id="${playerId}"] .pos`)?.textContent ?? '');
 
       const type = pendingEventType;
+      const label = EVENT_LABELS[type] || 'Événement';
 
-      if (type === 'shot') {
-        const clientUuid = crypto.randomUUID();
-        const localEvent = {
-          clientUuid,
-          matchId: Number(matchId),
-          type,
-          minute: currentMinute,
-          playerId: Number(playerId),
-          playerName,
-          playerPosition,
-          syncStatus: 'pending',
-          createdAt: Date.now()
-        };
+      const clientUuid = crypto.randomUUID();
+      const finalZoneX = (zoneX !== undefined && zoneX !== null) ? Number(Number(zoneX).toFixed(2)) : null;
+      const finalZoneY = (zoneY !== undefined && zoneY !== null) ? Number(Number(zoneY).toFixed(2)) : null;
+      const localEvent = {
+        clientUuid,
+        matchId: Number(matchId),
+        type,
+        minute: currentMinute,
+        playerId: Number(playerId),
+        playerName,
+        playerPosition,
+        zoneX: finalZoneX,
+        zoneY: finalZoneY,
+        syncStatus: 'pending',
+        retryCount: 0,
+        createdAt: Date.now()
+      };
 
-        const payload = {
-          clientUuid,
-          type,
-          minute: currentMinute,
-          playerId: Number(playerId),
-          comment: null
-        };
-
-        const commitOffline = async (warningMsg) => {
-          try {
-            await pendingDB.add(localEvent);
-            prependEventRow(localEvent, 'pending', true);
-            showToast(warningMsg, 'warning');
-            closePlayerModal();
-          } catch (dbErr) {
-            console.error(dbErr);
-            showToast('Impossible de sauvegarder localement', 'error');
-          }
-        };
-
-        if (!navigator.onLine) {
-          await commitOffline('Tir mis en attente (hors ligne)');
-          return;
-        }
-
-        try {
-          const data = await postEventToServer(payload);
-          localEvent.syncStatus = 'synced';
-          await pendingDB.add(localEvent);
-          prependEventRow(data.event, 'synced');
-          updateScoreboard(data.event.scoreHome, data.event.scoreAway);
-          showToast(data.duplicated ? 'Tir (déjà synchronisé)' : 'Tir enregistré');
-          closePlayerModal();
-          return;
-        } catch (err) {
-          const isNetworkError =
-            (err instanceof TypeError) ||
-            (err?.message && /network|fetch|connection/i.test(err.message)) ||
-            !navigator.onLine;
-
-          if (!isNetworkError) {
-            console.error(err);
-            showToast(err.message || 'Erreur', 'error');
-            return;
-          }
-
-          await commitOffline('Tir mis en attente (hors ligne)');
-          return;
-        }
-      }
+      const payload = {
+        clientUuid,
+        type,
+        minute: currentMinute,
+        playerId: Number(playerId),
+        zoneX: finalZoneX,
+        zoneY: finalZoneY,
+        comment: null
+      };
 
       try {
-        const data = await postEventToServer({
-          type,
-          minute: currentMinute,
-          playerId: playerId,
-          comment: null
-        });
+        await pendingDB.add(localEvent);
+      } catch (dbErr) {
+        console.error(dbErr);
+        showToast('Impossible de sauvegarder localement', 'error');
+        return;
+      }
 
-        prependEventRow(data.event);
-        updateScoreboard(data.event.scoreHome, data.event.scoreAway);
+      prependEventRow(localEvent, 'pending', true);
+      closePlayerModal();
+      pendingPlayerChoice = null;
 
-        const labels = {
-          shot: 'Tir enregistré',
-          goal: '⚽ But enregistré !',
-          key_pass: 'Passe clé enregistrée',
-          card_yellow: 'Carton jaune enregistré',
-          card_red: 'Carton rouge enregistré',
-          substitution: 'Remplacement enregistré'
-        };
-        showToast(labels[type] || 'Événement enregistré');
-        closePlayerModal();
+      try {
+        const data = await postEventToServer(payload);
+        await pendingDB.patch(clientUuid, { syncStatus: 'synced', syncedAt: Date.now() });
+        updateTimelineBadge(clientUuid, 'synced');
+        const row = eventsTimeline.querySelector(`[data-client-uuid="${clientUuid}"]`);
+        if (row && data.event?.id) {
+          row.setAttribute('data-event-id', data.event.id);
+          row.querySelector('[data-undo-id]')?.setAttribute('data-undo-id', data.event.id);
+        }
+        if (data.event && (data.event.scoreHome !== undefined)) {
+          updateScoreboard(data.event.scoreHome, data.event.scoreAway);
+        }
+        showToast(data.duplicated ? `${label} (déjà synchronisé)` : (EVENT_TOAST_SUCCESS[type] || `${label} enregistré`));
       } catch (err) {
-        console.error(err);
-        showToast('Erreur réseau', 'error');
+        const netErr =
+          (err instanceof TypeError) ||
+          (err?.message && /network|fetch|connection/i.test(err.message));
+
+        if (netErr) {
+          showToast(`${label} mis en attente (hors ligne)`, 'warning');
+        } else {
+          console.error(err);
+          await pendingDB.patch(clientUuid, {
+            syncStatus: 'failed',
+            errorMsg: err.message || 'server_error',
+            retryCount: 1
+          });
+          updateTimelineBadge(clientUuid, 'failed');
+          showToast(err.message || `Erreur sur ${label.toLowerCase()}`, 'error');
+        }
       }
     }
 
     document.querySelectorAll('.player-row[data-player-id]').forEach(row => {
-      row.addEventListener('click', () => submitEvent(parseInt(row.dataset.playerId, 10), row));
+      row.addEventListener('click', () => {
+        const pid = parseInt(row.dataset.playerId, 10);
+        const type = pendingEventType;
+        pendingPlayerChoice = { playerId: pid, playerRowEl: row };
+
+        if (type === 'shot' || type === 'goal') {
+          playerModal.classList.remove('open');
+          openZoneModal(type);
+        } else {
+          pendingEventType = type;
+          commitEvent(pid, row, null, null);
+        }
+      });
     });
 
     function bindUndoButton(btn) {
@@ -1253,41 +1539,103 @@
       }
     });
 
+    const MAX_AUTO_RETRIES = 5;
+    const RETRYABLE_STATUS_MIN = 500;
+    const SYNC_PERIODIC_INTERVAL_MS = 20000;
+    const SYNCED_EVENT_TTL_MS = 24 * 60 * 60 * 1000;
+    let periodicSyncTimer = null;
+
+    function isNetworkError(err) {
+      if (err instanceof TypeError) return true;
+      if (err?.message && /network|fetch|connection|timeout|abort|failed to fetch/i.test(err.message)) return true;
+      return false;
+    }
+    function isServerValidationError(err) {
+      if (isNetworkError(err)) return false;
+      const s = err && typeof err.status === 'number' ? err.status : null;
+      return s !== null && s >= 400 && s < RETRYABLE_STATUS_MIN;
+    }
+
     /* ============================================================
      *  Synchronisation automatique
      * ============================================================ */
     async function syncPendingEvents() {
       if (isSyncing) return;
-      if (!navigator.onLine) return;
       isSyncing = true;
       try {
-        const pending = await pendingDB.getAllByStatus('pending');
-        const toSync = pending.filter(e => e.matchId === Number(matchId));
-        if (toSync.length === 0) { isSyncing = false; return; }
+        const candidates = await pendingDB.getAllByStatuses(['pending', 'failed']);
+        const toSync = candidates.filter(e => {
+          if (e.matchId !== Number(matchId)) return false;
+          if (e.syncStatus === 'failed') {
+            const count = typeof e.retryCount === 'number' ? e.retryCount : 0;
+            if (count >= MAX_AUTO_RETRIES) return false;
+          }
+          return true;
+        });
+        if (toSync.length === 0) { return; }
 
         for (const ev of toSync) {
+          const nextRetry = (typeof ev.retryCount === 'number' ? ev.retryCount : 0) + 1;
           try {
             const data = await postEventToServer({
               clientUuid: ev.clientUuid,
               type: ev.type,
               minute: ev.minute,
               playerId: ev.playerId,
+              zoneX: ev.zoneX ?? null,
+              zoneY: ev.zoneY ?? null,
               comment: null
             });
-            await pendingDB.updateStatus(ev.clientUuid, 'synced');
+            await pendingDB.patch(ev.clientUuid, {
+              syncStatus: 'synced',
+              syncedAt: Date.now(),
+              retryCount: nextRetry
+            });
             updateTimelineBadge(ev.clientUuid, 'synced');
+            const row = eventsTimeline.querySelector(`[data-client-uuid="${ev.clientUuid}"]`);
+            if (row && data.event?.id) {
+              row.setAttribute('data-event-id', data.event.id);
+              row.querySelector('[data-undo-id]')?.setAttribute('data-undo-id', data.event.id);
+            }
             if (data.event && (data.event.scoreHome !== undefined)) {
               updateScoreboard(data.event.scoreHome, data.event.scoreAway);
             }
           } catch (syncErr) {
             console.warn('Sync échouée pour', ev.clientUuid, syncErr);
-            await pendingDB.updateStatus(ev.clientUuid, 'failed', syncErr.message || 'sync_error');
-            updateTimelineBadge(ev.clientUuid, 'failed');
+            if (isNetworkError(syncErr) || (syncErr && syncErr.status && syncErr.status >= RETRYABLE_STATUS_MIN)) {
+              await pendingDB.patch(ev.clientUuid, {
+                syncStatus: 'pending',
+                errorMsg: syncErr.message || 'network_error',
+                retryCount: nextRetry
+              });
+              updateTimelineBadge(ev.clientUuid, 'pending');
+            } else if (isServerValidationError(syncErr)) {
+              const stopAuto = nextRetry >= MAX_AUTO_RETRIES;
+              await pendingDB.patch(ev.clientUuid, {
+                syncStatus: stopAuto ? 'failed' : 'failed',
+                errorMsg: syncErr.message || 'validation_error',
+                retryCount: nextRetry
+              });
+              updateTimelineBadge(ev.clientUuid, 'failed');
+            } else {
+              await pendingDB.patch(ev.clientUuid, {
+                syncStatus: 'failed',
+                errorMsg: syncErr.message || 'sync_error',
+                retryCount: nextRetry
+              });
+              updateTimelineBadge(ev.clientUuid, 'failed');
+            }
           }
         }
       } finally {
         isSyncing = false;
+        purgeOldSyncedEvents().catch(() => {});
       }
+    }
+
+    async function purgeOldSyncedEvents() {
+      const cutoff = Date.now() - SYNCED_EVENT_TTL_MS;
+      await pendingDB.deleteSyncedOlderThan(cutoff);
     }
 
     async function restorePendingTimeline() {
@@ -1311,8 +1659,10 @@
       restoreLiveTimerIfNeeded();
       await pendingDB._ensureDB();
       await restorePendingTimeline();
-      if (navigator.onLine) {
-        syncPendingEvents();
+      purgeOldSyncedEvents().catch(() => {});
+      syncPendingEvents();
+      if (periodicSyncTimer === null) {
+        periodicSyncTimer = setInterval(syncPendingEvents, SYNC_PERIODIC_INTERVAL_MS);
       }
     })();
   });

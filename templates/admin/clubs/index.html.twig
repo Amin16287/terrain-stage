@@ -1,0 +1,81 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Clubs | Terrain Admin{% endblock %}
+{% block topbar_title %}🏟️ Clubs{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_clubs_new') }}" class="btn primary sm">
+        <span>＋</span> Nouveau club
+    </a>
+{% endblock %}
+
+{% block body %}
+<div class="page-title">
+    <h1>Gestion des clubs</h1>
+    <p>Gérez vos clubs et leurs villes de rattachement.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>{{ clubs|length }} club(s)</h3>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Ville</th>
+                    <th>Équipes</th>
+                    <th>Membres</th>
+                    <th>Créé le</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for club in clubs %}
+                    <tr>
+                        <td style="font-weight: 800;">{{ club.name }}</td>
+                        <td style="font-weight: 700;">
+                            {% if club.city %}
+                                {{ club.city }}
+                            {% else %}
+                                <span style="color: var(--muted);">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge" style="background: rgba(59,130,246,.1); color: var(--info); font-variant-numeric: tabular-nums;">
+                                👥 {{ club.teams|length }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge" style="background: rgba(168,85,247,.1); color: #a855f7; font-variant-numeric: tabular-nums;">
+                                🏅 {{ club.users|length }}
+                            </span>
+                        </td>
+                        <td style="white-space: nowrap; font-size: 12px; font-weight: 700; color: var(--muted);">
+                            {{ club.createdAt|date('d/m/Y') }}
+                        </td>
+                        <td>
+                            <div class="row-actions" style="justify-content: flex-end;">
+                                <a href="{{ path('app_admin_clubs_show', { id: club.id }) }}" class="btn sm secondary" title="Détails">👁️</a>
+                                <a href="{{ path('app_admin_clubs_edit', { id: club.id }) }}" class="btn sm warning" title="Modifier">✏️</a>
+                                <form method="post" action="{{ path('app_admin_clubs_delete', { id: club.id }) }}" class="confirm-delete-form" onsubmit="return confirm('Supprimer ce club ?');" style="display: inline;">
+                                    <button type="submit" class="btn sm danger" title="Supprimer">🗑️</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6">
+                            <div class="empty-state">
+                                💡 Aucun club trouvé. <a href="{{ path('app_admin_clubs_new') }}" style="color: var(--accent); font-weight: 800;">Créer le premier club</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

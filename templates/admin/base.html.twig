@@ -577,6 +577,10 @@
                 <span class="sidebar-link-icon">⚽</span>
                 Matchs
             </a>
+            <a class="sidebar-link {{ app.request.attributes.get('_route') starts with 'app_admin_clubs' ? 'active' : '' }}" href="{{ path('app_admin_clubs_index') }}">
+                <span class="sidebar-link-icon">🏟️</span>
+                Clubs
+            </a>
             <a class="sidebar-link {{ app.request.attributes.get('_route') starts with 'app_admin_teams' or app.request.attributes.get('_route') starts with 'app_admin_players' ? 'active' : '' }}" href="{{ path('app_admin_teams_index') }}">
                 <span class="sidebar-link-icon">👥</span>
                 Équipes &amp; Joueurs

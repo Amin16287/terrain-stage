@@ -10,6 +10,7 @@ use App\Repository\GameMatchRepository;
 use App\Repository\MatchEventRepository;
 use App\Repository\PlayerRepository;
 use App\Repository\UserRepository;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -167,8 +168,33 @@ final class MatchEventController extends AbstractController
             $match->setScoreHome($match->getScoreHome() + 1);
         }
 
-        $em->persist($event);
-        $em->flush();
+        try {
+            $em->persist($event);
+            $em->flush();
+        } catch (UniqueConstraintViolationException $e) {
+            $em->rollback();
+            $em->clear();
+
+            $match = $gameMatchRepository->find($id);
+            $existing = $matchEventRepository->findOneBy(['clientUuid' => $event->getClientUuid() ?? $clientUuid]);
+            if (!$existing || !$match) {
+                return $this->json(['error' => 'Conflit lors de la création'], 409);
+            }
+
+            return $this->json([
+                'success' => true,
+                'duplicated' => true,
+                'event' => [
+                    'id' => $existing->getId(),
+                    'type' => $existing->getType()->value,
+                    'minute' => $existing->getMinute(),
+                    'playerName' => $existing->getPlayer() ? ($existing->getPlayer()->getFirstName() . ' ' . strtoupper($existing->getPlayer()->getLastName())) : '',
+                    'playerPosition' => $existing->getPlayer() ? $existing->getPlayer()->getPosition() : null,
+                    'scoreHome' => $match->getScoreHome(),
+                    'scoreAway' => $match->getScoreAway() ?? 0,
+                ],
+            ]);
+        }
 
         return $this->json([
             'success' => true,

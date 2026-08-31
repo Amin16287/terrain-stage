@@ -1,0 +1,48 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ isNew ? 'Nouveau club' : 'Modifier le club' }} | Terrain Admin{% endblock %}
+{% block topbar_title %}{{ isNew ? '➕ Nouveau club' : '✏️ Modifier le club' }}{% endblock %}
+
+{% block topbar_actions %}
+    <a href="{{ path('app_admin_clubs_index') }}" class="btn sm secondary">← Retour liste</a>
+{% endblock %}
+
+{% block body %}
+<div class="page-title">
+    <h1>{{ isNew ? 'Créer un nouveau club' : 'Modifier le club' }}</h1>
+    <p>Renseignez les informations du club.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Informations du club</h3>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ isNew ? path('app_admin_clubs_new') : path('app_admin_clubs_edit', { id: club.id }) }}" class="form-grid">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Nom du club <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="name" required
+                        value="{{ club ? club.name : '' }}"
+                        placeholder="Ex : Olympique Lyonnais">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ville</label>
+                    <input type="text" class="form-input" name="city"
+                        value="{{ club ? (club.city ?? '') : '' }}"
+                        placeholder="Ex : Lyon">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn primary lg">
+                     {{ isNew ? 'Créer le club' : 'Enregistrer' }}
+                </button>
+                <a href="{{ club ? path('app_admin_clubs_show', { id: club.id }) : path('app_admin_clubs_index') }}" class="btn secondary lg">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
