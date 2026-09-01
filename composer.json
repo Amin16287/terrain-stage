@@ -26,6 +26,8 @@
         "symfony/form": "7.4.*",
         "symfony/framework-bundle": "7.4.*",
         "symfony/maker-bundle": "*",
+        "symfony/mercure-bundle": "*",
+        "symfony/messenger": "7.4.*",
         "symfony/property-access": "7.4.*",
         "symfony/property-info": "7.4.*",
         "symfony/runtime": "7.4.*",

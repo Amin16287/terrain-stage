@@ -1,0 +1,128 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Test Mercure - Subscribe{% endblock %}
+
+{% block body %}
+<div style="max-width: 720px; margin: 2rem auto; padding: 0 1rem; font-family: system-ui, sans-serif;">
+    <h1 style="color: #16a34a;">🔌 Test Mercure — Abonnement en temps réel</h1>
+
+    <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+        <div style="margin-bottom: 0.75rem;">
+            <label style="display: block; font-weight: 600; margin-bottom: 0.25rem;">Topic Mercure</label>
+            <input id="topic-input" type="text" value="https://example.com/test-topic"
+                   style="width: 100%; padding: 0.5rem; font-size: 1rem; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box;">
+        </div>
+        <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 0.25rem;">Hub public URL</label>
+            <input id="hub-input" type="text" value="{{ mercure_public_url() }}"
+                   style="width: 100%; padding: 0.5rem; font-size: 1rem; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box;">
+        </div>
+        <button id="connect-btn" style="margin-top: 1rem; background: #16a34a; color: white; border: none; padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: 6px; cursor: pointer; font-weight: 600;">
+            Se connecter / Se réabonner
+        </button>
+    </div>
+
+    <div id="status" style="padding: 0.75rem 1rem; border-radius: 6px; font-weight: 600; margin: 1rem 0; background: #fef3c7; color: #92400e;">
+        Statut : En attente de connexion...
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; margin: 1rem 0; flex-wrap: wrap;">
+        <a href="{{ path('app_test_mercure_publish') }}?data=Bonjour+depuis+onglet+1" target="_blank"
+           style="background: #2563eb; color: white; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600;">
+            📤 Publier un message (onglet 1)
+        </a>
+        <a href="{{ path('app_test_mercure_publish') }}?data=Hello+from+tab+2" target="_blank"
+           style="background: #7c3aed; color: white; padding: 0.6rem 1rem; border-radius: 6px; text-decoration: none; font-weight: 600;">
+            📤 Publier autre message (onglet 2)
+        </a>
+    </div>
+
+    <h2 style="margin-top: 2rem;">📬 Messages reçus :</h2>
+    <div id="messages" style="background: #0f172a; color: #e2e8f0; padding: 1rem; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 0.9rem; min-height: 200px; max-height: 500px; overflow-y: auto;">
+        <div style="color: #64748b; font-style: italic;">Aucun message pour l'instant. Publie-en un via le bouton ci-dessus !</div>
+    </div>
+</div>
+
+<script>
+(function () {
+    let eventSource = null;
+
+    const statusEl = document.getElementById('status');
+    const messagesEl = document.getElementById('messages');
+    const topicInput = document.getElementById('topic-input');
+    const hubInput = document.getElementById('hub-input');
+    const connectBtn = document.getElementById('connect-btn');
+
+    function setStatus(text, color) {
+        const colors = {
+            green: 'background:#dcfce7; color:#166534;',
+            red: 'background:#fee2e2; color:#991b1b;',
+            yellow: 'background:#fef3c7; color:#92400e;',
+            blue: 'background:#dbeafe; color:#1e40af;',
+        };
+        statusEl.setAttribute('style', 'padding: 0.75rem 1rem; border-radius: 6px; font-weight: 600; margin: 1rem 0; ' + (colors[color] || colors.yellow));
+        statusEl.textContent = 'Statut : ' + text;
+    }
+
+    function addMessage(data) {
+        const firstChild = messagesEl.firstElementChild;
+        if (firstChild && firstChild.style && firstChild.style.color === 'rgb(100, 116, 139)') {
+            messagesEl.innerHTML = '';
+        }
+        const time = new Date().toLocaleTimeString('fr-FR');
+        const div = document.createElement('div');
+        div.style.marginBottom = '0.5rem';
+        div.style.paddingBottom = '0.5rem';
+        div.style.borderBottom = '1px solid #334155';
+        div.innerHTML = '<span style="color:#38bdf8;">[' + time + ']</span> <span style="color:#fbbf24;">→</span> ' +
+            '<pre style="margin:0.25rem 0 0 1.5rem; white-space:pre-wrap; word-break:break-word;">' +
+            data.replace(/</g, '&lt;') + '</pre>';
+        messagesEl.prepend(div);
+    }
+
+    function connect() {
+        if (eventSource) {
+            eventSource.close();
+        }
+
+        const topic = topicInput.value.trim();
+        const hub = hubInput.value.trim();
+        if (!topic || !hub) {
+            setStatus('Topic ou Hub vide', 'red');
+            return;
+        }
+
+        const url = hub + '?topic=' + encodeURIComponent(topic);
+        setStatus('Connexion en cours vers ' + hub + ' ...', 'blue');
+
+        try {
+            eventSource = new EventSource(url, { withCredentials: false });
+
+            eventSource.onopen = function () {
+                setStatus('✅ Connecté au hub Mercure (topic: ' + topic + ')', 'green');
+            };
+
+            eventSource.onmessage = function (event) {
+                console.log('[Mercure] Message received:', event);
+                addMessage(event.data);
+            };
+
+            eventSource.onerror = function (err) {
+                console.error('[Mercure] EventSource error:', err);
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    setStatus('❌ Connexion fermée (hub Mercure démarré ? port 3000)', 'red');
+                } else if (eventSource.readyState === EventSource.CONNECTING) {
+                    setStatus('🔄 Reconnexion automatique en cours... (vérifie le hub sur port 3000)', 'yellow');
+                }
+            };
+        } catch (e) {
+            setStatus('❌ Erreur : ' + e.message, 'red');
+        }
+    }
+
+    connectBtn.addEventListener('click', connect);
+
+    document.addEventListener('DOMContentLoaded', connect);
+})();
+</script>
+{% endblock %}
