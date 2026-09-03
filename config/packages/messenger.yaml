@@ -14,6 +14,7 @@ framework:
 
         routing:
             'App\Message\TestMessage': async
+            'App\Message\UpdatePlayerSeasonStatsMessage': async
 
 # when@test:
 #    framework:
