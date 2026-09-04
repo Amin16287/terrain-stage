@@ -6,6 +6,7 @@ use App\Entity\GameMatch;
 use App\Entity\MatchEvent;
 use App\Enum\EventType;
 use App\Enum\SyncStatus;
+use App\Message\UpdatePlayerSeasonStatsMessage;
 use App\Repository\GameMatchRepository;
 use App\Repository\MatchEventRepository;
 use App\Repository\PlayerRepository;
@@ -16,6 +17,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -86,7 +88,8 @@ final class MatchEventController extends AbstractController
         GameMatchRepository $gameMatchRepository,
         PlayerRepository $playerRepository,
         UserRepository $userRepository,
-        MatchEventRepository $matchEventRepository
+        MatchEventRepository $matchEventRepository,
+        MessageBusInterface $bus
     ): JsonResponse {
         $match = $gameMatchRepository->find($id);
         if (!$match) {
@@ -194,6 +197,14 @@ final class MatchEventController extends AbstractController
                     'scoreAway' => $match->getScoreAway() ?? 0,
                 ],
             ]);
+        }
+
+        $team = $player->getTeam();
+        if ($team !== null && $team->getSeason() !== null) {
+            $bus->dispatch(new UpdatePlayerSeasonStatsMessage(
+                playerId: $player->getId(),
+                season: $team->getSeason(),
+            ));
         }
 
         return $this->json([

@@ -8,6 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: PlayerSeasonStatsRepository::class)]
+#[ApiResource]
 #[ORM\UniqueConstraint(name: 'uniq_player_season', columns: ['player_id', 'season'])]
 class PlayerSeasonStats
 {

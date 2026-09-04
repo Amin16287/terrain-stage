@@ -12,14 +12,24 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 #[AsMessageHandler]
 final class UpdatePlayerSeasonStatsHandler
 {
-    private const SQL = <<<'SQL'
-        INSERT INTO player_season_stats (player_id, season, goals, key_passes, minutes_played, updated_at)
-        VALUES (:player_id, :season, :goals_add, :key_passes_add, :minutes_add, NOW())
+    private const SQL_RECALC = <<<'SQL'
+        SELECT
+            COUNT(*) FILTER (WHERE me.type = 'goal')     AS goals,
+            COUNT(*) FILTER (WHERE me.type = 'key_pass') AS key_passes
+        FROM match_event me
+        INNER JOIN game_match gm ON gm.id = me.game_match_id
+        INNER JOIN team ht       ON ht.id = gm.home_team_id
+        WHERE me.player_id = :player_id
+          AND ht.season   = :season
+        SQL;
+
+    private const SQL_UPSERT = <<<'SQL'
+        INSERT INTO player_season_stats (player_id, season, goals, key_passes, updated_at)
+        VALUES (:player_id, :season, :goals, :key_passes, NOW())
         ON CONFLICT (player_id, season) DO UPDATE SET
-            goals          = player_season_stats.goals          + EXCLUDED.goals,
-            key_passes     = player_season_stats.key_passes     + EXCLUDED.key_passes,
-            minutes_played = player_season_stats.minutes_played + EXCLUDED.minutes_played,
-            updated_at     = NOW()
+            goals      = EXCLUDED.goals,
+            key_passes = EXCLUDED.key_passes,
+            updated_at = NOW()
         RETURNING id, (xmax = 0) AS was_inserted
         SQL;
 
@@ -31,12 +41,21 @@ final class UpdatePlayerSeasonStatsHandler
 
     public function __invoke(UpdatePlayerSeasonStatsMessage $message): void
     {
-        $row = $this->entityManager->getConnection()->fetchAssociative(self::SQL, [
-            'player_id'       => $message->playerId,
-            'season'          => $message->season,
-            'goals_add'       => $message->goalsAdd,
-            'key_passes_add'  => $message->keyPassesAdd,
-            'minutes_add'     => $message->minutesAdd,
+        $conn = $this->entityManager->getConnection();
+
+        $totals = $conn->fetchAssociative(self::SQL_RECALC, [
+            'player_id' => $message->playerId,
+            'season'    => $message->season,
+        ]);
+
+        $goals      = (int) ($totals['goals']      ?? 0);
+        $keyPasses  = (int) ($totals['key_passes'] ?? 0);
+
+        $row = $conn->fetchAssociative(self::SQL_UPSERT, [
+            'player_id'  => $message->playerId,
+            'season'     => $message->season,
+            'goals'      => $goals,
+            'key_passes' => $keyPasses,
         ]);
 
         if (false === $row) {
@@ -48,16 +67,15 @@ final class UpdatePlayerSeasonStatsHandler
 
         $wasInserted = filter_var($row['was_inserted'], FILTER_VALIDATE_BOOLEAN);
 
-        $this->logger->info('[PlayerSeasonStats] Upsert atomique OK', [
-            'player_id'       => $message->playerId,
-            'season'          => $message->season,
-            'operation'       => $wasInserted ? 'INSERT' : 'UPDATE',
-            'stat_id'         => (int) $row['id'],
-            'goals_add'       => $message->goalsAdd,
-            'key_passes_add'  => $message->keyPassesAdd,
-            'minutes_add'     => $message->minutesAdd,
+        $this->logger->info('[PlayerSeasonStats] Recalc + upsert idempotent OK', [
+            'player_id'     => $message->playerId,
+            'season'        => $message->season,
+            'operation'     => $wasInserted ? 'INSERT' : 'UPDATE',
+            'stat_id'       => (int) $row['id'],
+            'totals'        => [
+                'goals'      => $goals,
+                'key_passes' => $keyPasses,
+            ],
         ]);
-
-        $this->entityManager->clear();
     }
 }
